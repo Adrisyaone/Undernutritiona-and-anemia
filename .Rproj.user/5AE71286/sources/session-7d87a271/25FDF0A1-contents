@@ -1,0 +1,75 @@
+# mapping in R
+require(rgdal)
+library(fuzzyjoin)
+library("sf")
+library(sp)
+library(ggplot2)
+library(dplyr)
+library("ggspatial")
+library(ggsn)
+
+# District wise Map files------------
+nepal<-sf::st_read("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/My files/Geospatial modelling learning/GSM/Datasets/hermes_NPL_new_wgs(1)/hermes_NPL_new_wgs_2.shp")
+
+linking_code<- read.csv("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Projects/Census data analysis/Raw datasets/Code_of municipality/coding.csv")
+
+linking_code<-linking_code |> 
+  filter(!duplicated(District)) |> 
+  select(3,4)
+
+nm<-nm |> 
+  stringdist_left_join(linking_code, by =c("DISTRICT"="District"), max_dist = 1 )
+
+nm$District.code[nm$DISTRICT=="Rukum West"]<-608
+nm$District.code[nm$DISTRICT=="Jumla"]<-604
+nm$District.code[nm$DISTRICT=="Dolpa"]<-601
+nm$District.code[nm$DISTRICT=="Rukum East"]<-501
+nm$District.code[nm$DISTRICT=="Parasi"]<-507
+nm$District.code[nm$DISTRICT=="Nawalpur"]<-408
+nm$District.code[nm$DISTRICT=="Kabhrepalanchok"]<-309
+
+nm[!duplicated(nm$DISTRICT),]->nm
+
+nm<-nm |> 
+  select(1:4,6,7)
+
+# District wise NCDs deaths-------
+dncds<-Census_dataset |>
+  # filter(locallevel!="INSTUTIONAL") |> 
+  group_by(`District code`,District,`Age Group`, Gender) |> 
+  summarise(Total_popn=sum(Total_popn,na.rm=T),
+            CD=sum(`CD`,na.rm=T),
+            NCD=sum(`NCD`,na.rm=T),
+            RD=sum(`RD`, na.rm = T),
+            other_accidents=sum(`other_accidents`, na.rm=T),
+            preg_deaths=sum(`pregnancy_related`, na.rm=T),
+            crime=sum(`crime`,na.rm=T),
+            suicide=sum(`suicide`,na.rm=T),
+            natural_disaster=sum(`natural_disaster`, na.rm=T),
+            other_deaths=sum(other_deaths, na.rm=T),
+            not_stated=sum(`not_stated`, na.rm=T)
+  ) |> 
+  filter(`Age Group`=="AllAges")
+
+dncds_total<-dncds |> 
+  filter(Gender=="Total")
+
+# Merge NCDS and map data----
+nm1<-nm |> 
+  left_join(dncds_total, by=c("District.code"="District code")) |> 
+  mutate(NCDsMR=round(NCD/(Total_popn+NCD)*100000,1))
+
+
+
+a<-ggplot(data = nm1)+
+  geom_sf(aes(geometry=geometry,fill=NCDsMR), col="black")+
+  coord_sf(crs = "WGS84")+
+  labs(fill="NCDs mortality rate \n per 1 lakh",fontface="bold" )+
+  scale_fill_viridis_c(direction = -1)+
+  geom_sf_text(aes(label = DISTRICT, geometry=geometry), colour = "white", size=3, position = "jitter",check_overlap = T)+
+  theme_void()
+tiff(filename = "map of Nepal.tiff", width = 10, height = 8, units = "cm", res = 300)
+a
+dev.off()
+
+

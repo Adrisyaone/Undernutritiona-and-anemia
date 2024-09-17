@@ -1,0 +1,129 @@
+rm(list=ls())
+source("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Readiness of facilities for TB/Scripts/Load datasets.R")
+
+source("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Readiness of facilities for TB/Scripts/functions.R")
+
+
+dataset$V002<-as.character(dataset$V002)
+dataset$V002[dataset$V002=="Kavrepalanchok"]<-"Kabhrepalanchok"
+dataset$V002[dataset$V002=="Makwanpur"]<-"Makawanpur"
+dataset$V002[dataset$V002=="Nawalparasi east"]<-"Nawalpur"
+dataset$V002[dataset$V002=="Nawalparasi west"]<-"Parasi"
+dataset$V002[dataset$V002=="Rukum east"]<-"Rukum East"
+dataset$V002[dataset$V002=="Rukum west"]<-"Rukum West"
+dataset$V002[dataset$V002=="Makwanpur"]<-"Makawanpur"
+
+
+
+
+
+
+dataset<-dataset%>%
+  filter(V007!="HTC (stand alone)") |> 
+  filter(!is.na(VT821)) |> 
+  filter(VT821=="Yes")
+
+
+
+#guideline
+dataset<-dataset |> 
+  mutate(guideline=ifelse(V1109A=="Observed", 1,0),
+         guideline=ifelse(is.na(guideline), 0,guideline),
+  )
+
+#staff_training 
+dataset<-dataset |> 
+  mutate(stafftrain=ifelse(V2011B==0, 0,1)
+  )
+
+
+# TBmicroscopy
+
+dataset<-dataset |> 
+  mutate(TBmicr0=ifelse(VT815=="Yes", 1,0)
+  )
+
+
+# system for diagnosing TB
+dataset<-dataset |> 
+  mutate(sysTB=ifelse(V1141=="System or register observed", 1,0),
+         sysTB=ifelse(is.na(sysTB), 0, sysTB) 
+  )
+
+# HIV capacity
+dataset<-dataset |> 
+  mutate(sysTB=ifelse(V1141=="System or register observed", 1,0),
+         sysTB=ifelse(is.na(sysTB), 0, sysTB) 
+  )
+
+
+
+# RDT kit or ELISA test with
+# ELISA washer, ELISA reader,
+# incubator, specific assay kit
+
+
+#RDTkit
+dataset<-dataset |> 
+  mutate(RDTkit=ifelse(SF19141=='Yes, observed, at least 1 valid'|SF19142=='Yes, observed, at least 1 valid'|SF19143=='Yes, observed, at least 1 valid'|SF19145=='Yes, observed, at least 1 valid', 1,0),
+         RDTkit=ifelse(is.na(RDTkit), 0, RDTkit) 
+  )
+
+#ELISA 
+
+dataset<-dataset |> 
+  mutate(elisa=ifelse(V843A=="Equipment used and observed" & V843H=="Equipment used and observed"|V843I=="Equipment used and observed"& V843J=="Equipment used and observed", 1,0),
+         elisa=ifelse(is.na(elisa), 0, elisa),
+         hivdiagnosticcap=ifelse(elisa==1 |RDTkit==1, 1,0)
+  )
+
+
+
+
+#mEDICINES
+#Isoniazid, Pyrazinamide, Rifampicin, and Ethambutol,or combinations to meet first-line TB treatment
+
+#Ethambutol
+dataset<-dataset |> 
+  mutate(ethambutal=ifelse(is.na(V923_01), 0, ifelse(V923_01=="Yes, observed, at least 1 valid", 1,0)),
+         isoniazid=ifelse(is.na(V923_02), 0, ifelse(V923_02=="Yes, observed, at least 1 valid", 1,0)),
+         Pyrazinami=ifelse(is.na(V923_03), 0, ifelse(V923_03=="Yes, observed, at least 1 valid", 1,0)),
+         Rifam=ifelse(is.na(V923_04), 0, ifelse(V923_04=="Yes, observed, at least 1 valid", 1,0)),
+         IRc=ifelse(is.na(V923_06), 0, ifelse(V923_06=="Yes, observed, at least 1 valid", 1,0)),
+         IRPc=ifelse(is.na(V923_07), 0, ifelse(V923_07=="Yes, observed, at least 1 valid", 1,0)),
+         IEc=ifelse(is.na(V923_08), 0, ifelse(V923_08=="Yes, observed, at least 1 valid", 1,0)),
+         IRPEc=ifelse(is.na(V923_09), 0, ifelse(V923_09=="Yes, observed, at least 1 valid", 1,0)),
+         IREc=ifelse(is.na(V923_11), 0, ifelse(V923_11=="Yes, observed, at least 1 valid", 1,0)),
+         IRck=ifelse(is.na(V923_12), 0, ifelse(V923_12=="Yes, observed, at least 1 valid", 1,0))) 
+
+
+
+
+# Readiness score 
+dataset<-dataset |> 
+  mutate(staff_and_guidelines=(guideline+stafftrain)/2*100,
+         medicine=(ethambutal+isoniazid+Pyrazinami+Rifam+IRc+IRPc+IEc+IRPEc+IREc)/8*100,
+         diagnosis=(hivdiagnosticcap+sysTB+TBmicr0)/3*100,
+         overall_score=(staff_and_guidelines+medicine+diagnosis)/3)
+
+
+
+
+selected_vars<-dataset |> 
+  select(V002,5,7,2478:2507)
+
+
+saveRDS(selected_vars, "dataset.RDS")
+getwd()
+mean(selected_vars$overall_score)
+
+dataset |> 
+  group_by(V002) |> 
+  summarise(weighted_mean=weighted.mean(overall_score,w = V005),
+            weighted_sd=sqrt(Hmisc::wtd.var(overall_score,normwt = V005))) |> 
+  write.csv("district_wise_weighted_score.csv")
+
+weighted.mean(selected_vars$overall_score,w = selected_vars$V005)
+
+
+

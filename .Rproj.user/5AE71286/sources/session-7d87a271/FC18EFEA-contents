@@ -1,0 +1,47 @@
+library(sp)
+library(rgdal)
+library(leaflet)
+
+#load dataset
+gps <- read_excel("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/My files/Geospatial modelling learning/GSM/Datasets/GPS_NDHS2022/NPGE81FL/NPGE81FL.dbf.xlsx")
+
+#Data of nepal with mental health
+nepal_mh<-mental_health_data |> 
+  left_join(gps, by=c("mv001"="DHSCLUST"))
+  
+# unique data of Nepal
+dim(unique(nepal_mh[, c("LONGNUM","LATNUM")]))
+# [1] 476   2
+
+
+
+# cluster_wise prevalence
+np<-nepal_mh |> 
+  group_by(mv001,LONGNUM,LATNUM) |> 
+  summarise(
+    total=n(),
+    anxiety = sum(anxiety),
+    depression=sum(depression),
+    anxiety_prev = anxiety / total,
+    depression_prev=depression/total)
+
+
+# Transforming coordinates
+sps <- SpatialPoints(np[, c("LONGNUM","LATNUM")],
+                     proj4string = CRS("+proj=utm +zone=45")
+)
+spst <- spTransform(sps, CRS("+proj=longlat +datum=WGS84"))
+
+
+
+pal <- colorBin("viridis", bins = c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7))
+
+leaflet(np) %>%
+  addProviderTiles(providers$CartoDB.Positron) |> 
+  addPolygons(data = nepal, weight=0.5, color = "black", fillColor = "white") |> 
+  addCircles(lng = ~LONGNUM, lat = ~LATNUM, color = ~ pal(anxiety_prev)) %>%
+  addLegend("bottomright",
+            pal = pal, values = ~anxiety_prev,
+            title = "Prev."
+  ) %>%
+  addScaleBar(position = c("bottomleft"))

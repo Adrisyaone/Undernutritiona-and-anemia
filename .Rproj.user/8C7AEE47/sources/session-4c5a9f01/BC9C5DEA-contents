@@ -1,0 +1,26 @@
+# load data
+AssignmentData <- read.csv("C:/Users/Legion/Downloads/AssignmentData.csv")
+
+AssignmentData$Group<-as.factor(AssignmentData$Group)
+AssignmentData$Adverse_Event<-as.factor(AssignmentData$Adverse_Event)
+AssignmentData$Missed_Work_School<-as.factor(AssignmentData$Missed_Work_School)
+
+AssignmentData<-AssignmentData %>% 
+  mutate(outcome=ifelse(Adverse_Event=="Yes"& Medical_Attention=="Yes", 1, 0))
+
+
+library(gtsummary)
+
+
+AssignmentDatatbl_summary(data = AssignmentData %>% droplevels() %>% filter(), include = c("Age", "Sex","Vaccine_Type", "Adverse_Event"), by="Group" )+
+  add_p()
+
+
+m1<-glm(formula = outcome~Group+Age+Sex+Vaccine_Type, family = binomial,"data" = AssignmentData)
+
+tbl_regression(m1, exponentiate = T)
+
+
+m2<-glm(formula = outcome~Group*Vaccine_Type+Age+Sex, family = binomial,"data" = AssignmentData)
+
+tbl_regression(m, exponentiate = T)

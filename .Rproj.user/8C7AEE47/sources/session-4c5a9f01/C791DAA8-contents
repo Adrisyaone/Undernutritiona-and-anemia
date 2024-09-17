@@ -1,0 +1,444 @@
+---
+output:
+  pdf_document:
+    number_sections: yes
+  html_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+# Mapping with R: Part 1
+
+In mapping, there are two main types of data: **spatial data** and **attribute data**. Understanding these types of data is essential for effectively creating and interpreting maps.
+
+1.  **Spatial Data:** Spatial data represent the geographic locations and shapes of features on the Earth's surface. This type of data is typically stored as points, lines, or polygons, each representing different types of spatial features:
+    -   **Points:** Individual locations on the Earth's surface, such as cities, landmarks, or sampling sites.
+    -   **Lines:** Sequences of connected points, representing features such as roads, rivers, or boundaries.
+    -   **Polygons:** Closed shapes defined by a sequence of connected points, representing areas such as countries, states, or administrative regions.
+
+Spatial data can be represented in various formats, including:
+
+-   **Vector Data:** Vector data store spatial information as a collection of points, lines, or polygons with associated attributes. Examples of vector formats include Shapefile (**`.shp`**), GeoJSON, and Spatial DataFrame (from the **`sf`** package in R).
+
+-   **Raster Data:** Raster data represent spatial information as a grid of cells, where each cell contains a single value or attribute. This format is commonly used for continuous data such as elevation models, satellite imagery, or land cover data. Examples of raster formats include GeoTIFF, JPEG, and PNG.
+
+**2. Attribute Data:** Attribute data, also known as tabular data or non-spatial data, represent the characteristics or attributes associated with spatial features. These data describe the properties or attributes of the features, such as population, temperature, land use, or any other variable of interest.
+
+Attribute data are typically stored in tabular formats, such as:
+
+-   **CSV (Comma-Separated Values):** A simple and widely used text format for storing tabular data, with each row representing a record and each column representing a variable.
+
+-   **Excel Spreadsheet (.xls, .xlsx):** Microsoft Excel files can store tabular data with multiple sheets and formatting options.
+
+-   **Database Tables:** Attribute data may also be stored in relational databases such as MySQL, PostgreSQL, or SQLite.
+
+## Basics in mapping
+
+### Resources
+
+The resources required for this chapter are:
+
+1.  **Attribute Dataset:** We will be using the data of census 2021. This file can be assessed from the the common drive of the HERD International `(\192.168.5.51\Common\bikram\Compiled data of Census)`.
+2.  **Shape file:** The shape file of local level of Nepal can be downloaded from the link [here](https://github.com/Adrisyaone/map-of-Nepal).
+3.  **Raster file:** The raster file related to pollution of Nepal can be downloaded from the link [here](https://github.com/Adrisyaone/Datasets/tree/main/Raster%20files).
+4.  **Points:** GPS points of health facilities of Nepal can be downloaded from the link [here](https://github.com/Adrisyaone/Datasets/blob/main/GPS%20of%20facilities.csv).
+
+### Install and load libraries
+
+For a efficient mapping with R, it is essential to use some packages such as `leaflet, tidyverse, readxl, raster, sf, and sp`. in order to use the functions of these packages, you have to install them using `install.packages("name of package") and` load them using `library("name of package")`.
+
+```{r, warning=FALSE,echo=FALSE}
+# install.packages("sf")
+# install.packages("sp")
+# install.packages("raster")
+# install.packages("readxk")
+
+library(leaflet)
+library(tidyverse)
+library(ggspatial)
+library(readxl)
+library(raster)
+library(sf)
+library(sp)
+library(maptiles)
+library(tidyterra)
+library(ggspatial)
+```
+
+### **Import shape files**
+
+Shape files can be imported into R using `st_read()` from sf package.
+
+```{r}
+# load map of Nepal
+nepal<-sf::st_read("Datasets/Coded shape file of nepal/shape_file_nepal.shp")
+```
+
+**Import point data with longitude and latitude**
+
+Point data with longitude and latitude can be present in the .csv or .xlsx or other format. We can import them into R using using process. We can convert them to shape file using st\_
+
+```{r}
+hf_points<-read_csv("Datasets/GPS of facilities.csv")
+hf_points<-hf_points[sample(x = 1:1588, size = 20,replace = FALSE),]
+hf_points_shp <- st_as_sf(hf_points, coords = c("LONGNUM", "LATNUM"), crs = "+proj=longlat +datum=WGS84 +no_defs")
+```
+
+### Check coordinate reference system (CRS)
+
+A Coordinate reference system (CRS) defines, with the help of coordinates, how the two-dimensional, projected map is related to real locations on the earth. The crs of the shape file can be printed using `st_crs()` function.
+
+```{r}
+st_crs(nepal)
+```
+
+### Transform CRS
+
+The coordinate reference system (CRS) of the the shape file is essential to be correct before mapping. Currently the crs of the shape file is `"+proj=longlat +ellps=evrst30 +towgs84=293.17,726.18,245.36,0,0,0,0 +no_defs"`. The code to transform the CRS
+
+```{r}
+nepal<-st_transform(nepal, crs="+proj=longlat +datum=WGS84 +no_defs")
+
+st_crs(nepal)
+```
+
+The map plotted with this CRS resulted to this non-alignment with the openstreet map (Fig 1). After chaning the crs, you will get the map perfectly align with the open street map (Fig 2).
+
+![**Fig 1: With default CRS**](pictures/crs1.PNG)
+
+![**Fig 2: With corrected CRS**](pictures/crs2.PNG)
+
+::: callout-note
+`st_crs(nepal)<-st_crs("+proj=longlat +datum=WGS84 +no_defs")`
+
+This code will replace the CRS of the shape file but doesn't reproject so use `st_transform` .
+:::
+
+### Plot shape file
+
+```{r}
+# With ggplot (theme_balck and white)
+ggplot() +
+geom_sf(data = nepal)+
+  xlab("Longitude") + ylab("Latitude")+
+   annotation_scale(location = "bl", width_hint = 0.3) +
+    annotation_north_arrow(location = "tr", which_north = "true", 
+        pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+        style = north_arrow_fancy_orienteering) +
+     coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
+  theme_bw()
+```
+
+### Plot shape file over open street map
+
+```{r}
+# With ggplot
+dc <- maptiles::get_tiles(nepal, provider = "OpenStreetMap", zoom = 3)
+ggplot() +
+tidyterra::geom_spatraster_rgb(data = dc)+
+geom_sf(data = nepal)+
+  xlab("Longitude") + ylab("Latitude")+
+   annotation_scale(location = "bl", width_hint = 0.3) +
+    annotation_north_arrow(location = "tr", which_north = "true", 
+        pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+        style = north_arrow_fancy_orienteering) +
+     coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
+  theme_bw()
+
+```
+
+### Plot shape file along with the points
+
+```{r}
+# # With leaflet
+# leaflet() %>%
+#   addTiles(group = "OSM") %>%
+#   addProviderTiles("CartoDB", group = "Carto") %>%
+#   addProviderTiles("Esri", group = "Esri") %>%
+#   addPolygons(data = nepal, color = "#660000", weight = 1, smoothFactor = 0.5) %>%
+#   addMarkers(data = hf_points_shp,popup = ~SPATYPEN)
+
+
+# With ggplot (theme_balck and white)
+ggplot() +
+geom_sf(data = nepal)+
+  geom_sf(data=hf_points_shp)+
+  xlab("Longitude") + ylab("Latitude")+
+   annotation_scale(location = "bl", width_hint = 0.3) +
+    annotation_north_arrow(location = "tr", which_north = "true", 
+        pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+        style = north_arrow_fancy_orienteering) +
+     coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
+  theme_bw()
+```
+
+### Saving the map file
+
+After final map is ready, we can save it using `ggsave()`. This function allows us ti save our graphic (typically the last plot displayed) in various formats, such as PDF (vector graphics), PNG (raster bitmap), with control over the size and resolution of the outcome. Lets save out map into PDF and PNG. PDF version of the map is in best quality, and a PNG version is low quality and can be useful in web purposes.
+
+```{r}
+ggsave("Output/map.pdf")
+ggsave("Output/map_img.png", width = 12, height = 12, dpi = "screen")
+```
+
+```{r, include=FALSE}
+library(leaflet)
+library(tidyverse)
+library(ggspatial)
+library(readxl)
+library(raster)
+library(sf)
+library(sp)
+library(maptiles)
+library(tidyterra)
+library(ggspatial)
+
+hf_points<-read_csv("Datasets/GPS of facilities.csv")
+hf_points<-hf_points[sample(x = 1:1588, size = 700,replace = FALSE),]
+hf_points_shp <- st_as_sf(hf_points, coords = c("LONGNUM", "LATNUM"), crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+nepal<-sf::st_read("Datasets/Coded shape file of nepal/shape_file_nepal.shp")
+
+nepal <- st_transform(nepal, crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+```
+
+## Shape file data manipulation
+
+Shape file data manipulation include visualizing, filtering, joining, selecting attributes and so on
+
+### **Number of attributes of the shape file**
+
+We can use `ncol() or dim()` to count number of attributes associated with the shape file
+
+```{r}
+ncol(nepal)
+dim(nepal)
+```
+
+### **Filter data**
+
+Filtering involves selecting features based on attributes or spatial parameters. We can filter data by using base R or filter function from tidyverse
+
+```{r, warning=FALSE, message=FALSE}
+# Filter shape file of Kathmandu District
+ktm<-nepal |> 
+  filter(DISTRIC=="Kathmandu")
+
+# Plot Kathmandu District with ggplot
+ggplot() +
+geom_sf(data = ktm)+
+  xlab("Longitude") + ylab("Latitude")+
+   annotation_scale(location = "bl", width_hint = 0.3) +
+    annotation_north_arrow(location = "tr", which_north = "true", 
+        pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+        style = north_arrow_fancy_orienteering) +
+     coord_sf(xlim = c(85.19, 85.6), ylim = c(27.55, 27.90))+
+  theme_bw()
+```
+
+### **Clip in R**
+
+Clipping a shapefile restricts it to the boundary of another shapefile. This is useful for focusing on a specific geographic area.
+
+```{r, warning=FALSE, message=FALSE}
+clipped_data<-st_intersection(ktm,hf_points_shp)
+
+# View first 10 ros of clipped data
+knitr::kable(head(clipped_data,10),row.names = FALSE,)
+
+```
+
+### **Joining attribute dataset to shape file in R**
+
+Here, I will join attribute data (CENSUS 2021 literacy dataset) with the shape file.
+
+```{r}
+# Census 2021 literacy dataset
+dt <- read.csv("Datasets/Census2022_popn_literacy.csv")
+
+# Clearning Census 2021 literacy dataset
+dt<-dt |> 
+  filter(Age_group1=="AllAges" & Gender=="Total" ) |> 
+  mutate(literacy_rate=round(can_read_write/(Total_literacy)*100,1))
+
+# joining literacy dataset with the shape file of Nepal
+nepal<-nepal |> 
+  left_join(dt, by="llCode")
+```
+
+### Add shape file to another shape file
+
+```{r}
+# filter out shape file of kathmandu district
+ktm<-nepal |> 
+  filter(DISTRIC=="Kathmandu")
+# Plot ktm
+ggplot() +
+geom_sf(data = ktm)+
+    theme_bw()
+
+# filter out shape file of kavrepalanchok
+kavre<-nepal|> 
+  filter(DISTRIC=="Kabhrepalanchok")
+
+# Plot Kavre
+ggplot() +
+geom_sf(data = kavre) +
+  theme_bw()
+
+# join spatial data
+ktm_kavre<-bind_rows(kavre, ktm)
+ggplot() +
+geom_sf(data = ktm_kavre) +
+  theme_bw()
+
+```
+
+### Dissolve polygons
+
+Dissolving merges features based on a common attribute, removing internal boundaries to create larger polygons.
+
+```{r}
+province <- nepal %>% 
+  group_by(PR_NAME) |> 
+  summarise() |> 
+  st_union(by_feature =T ) # Dissolve by attribute and if  by_featuer=F, then it will be merged to single file
+
+plot(province)
+
+
+
+```
+
+### Create grid for sampling over shape file
+
+```{r}
+# Lets select all municipalities of kathmandu district
+ktm<-nepal |> 
+  filter(DISTRIC=="Kathmandu")
+
+
+# Dissolve all municipalities to a single kathmandu district
+ktm_district<-ktm %>% 
+  group_by(DISTRIC) |> 
+  summarise() |> 
+  st_union(by_feature =T ) 
+
+# Create grids over kathmandu district
+grid <- ktm_district |> 
+  sf::st_make_grid(cellsize = 0.01, square = T) |> 
+  sf::st_as_sf()
+
+# Clip grids overlaying the ktm_district
+grids<-st_intersection(ktm_district,grid)
+grids$id<-seq(1,dim(grids)[1],by=1)
+
+# Filter randomly selected 50 grids
+random_selected_grids<-grids[sample(1:dim(grids)[1], size = 50,replace = F),]
+
+# plot the grid and municipalities of ktm
+ggplot() +
+geom_sf(data = ktm) +
+  geom_sf(data=random_selected_grids, fill="green")+
+  theme_bw()
+
+
+```
+
+### Determine centroid of the polygon shape file
+
+```{r}
+centroids<-ktm %>% 
+  st_geometry() |> 
+  st_centroid()
+
+ggplot() +
+geom_sf(data = ktm, fill="lightyellow") +
+  geom_sf(data=centroids, col="darkgreen")+
+  theme_bw()
+```
+
+### Plot buffer zone around point
+
+```{r}
+# Create 2km buffer around gps points
+buffer_point = st_buffer(centroids, dist = units::set_units(1, "kilometers"))
+
+# plot buffer
+ggplot() +
+geom_sf(data = ktm, fill="lightyellow") +
+  geom_sf(data=buffer_point, col="black", fill="white")+
+  theme_bw()
+```
+
+### Pull data of OSM
+
+The `osmdata` package provides spatial data about a wide range of spatial properties and objects across the world. The `available_features()` function can be used to get the list of recognized features in OSM. A list of the available features can be found in the [OSM wiki](https://wiki.openstreetmap.org/wiki/Map_Features).
+
+```{r}
+# install.packages("osmdata")
+library(osmdata)
+
+# Explore the first 50 featuers 
+available_features()[1:10]
+
+# Explore tags 
+available_tags("waterway") # here waterway is the  feature
+
+# pull osm data
+kavre_bb <- getbb("kavrepalanchok")
+kavre_bb
+
+kavre_rivers <- kavre_bb %>%
+  opq() %>%
+  add_osm_feature(key = "waterway", value = "river") %>%
+  osmdata_sf()
+
+ggplot() +
+  geom_sf(data = kavre_rivers$osm_lines)+
+  geom_sf(data=kavre)
+
+```
+
+### Plot literacy rate of each local level (Cholopleths)
+
+```{r}
+# With leaflet
+bins <- c(0, 20, 40, 60, 80, 100)
+pal <- colorBin("YlOrRd", domain = nepal$literacy_rate, bins = bins)
+
+leaflet()  |> 
+  addPolygons(data = nepal,
+              color="black",
+              fillColor = ~pal(literacy_rate),
+              weight = 1,
+              smoothFactor = 0.5,
+              popup = ~paste("District:",DISTRIC,"<br> Region: ",LOCAL," ",TYPE ,"<br>",
+                   "Literacy Rate: ", literacy_rate, "%")) |> 
+  addLegend(data=nepal,
+            pal = pal,
+            values = ~literacy_rate,
+            opacity = 0.7,
+            title = NULL,
+            position = "bottomleft")
+
+
+# With ggplot (theme_balck and white)
+ggplot() +
+geom_sf(data = nepal)+
+  geom_sf(data=hf_points_shp)+
+  xlab("Longitude") + ylab("Latitude")+
+   annotation_scale(location = "bl", width_hint = 0.3) +
+    annotation_north_arrow(location = "tr", which_north = "true", 
+        pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+        style = north_arrow_fancy_orienteering) +
+     coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
+  theme_bw()
+```
+
+### Save shape file in R
+
+```{r}
+st_write(province, "Output/Province shape file.shp")
+```

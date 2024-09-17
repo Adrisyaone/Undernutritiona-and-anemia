@@ -1,0 +1,313 @@
+#load libraries
+library(haven)
+library(sjmisc)
+library(labelled)
+library(expss)
+library(tidyselect)
+library(naniar)
+library(survey)
+library(gtsummary)
+library(tidyverse)
+library(rgdal)
+library(sf)
+library(SUMMER)
+
+# load PR data
+PRdata <- read_dta("Datasets/NDHS22/NPPR81DT/NPPR81FL.DTA")
+PRdata <- PRdata %>%
+  mutate(wt = hv005/1000000)
+
+# //Severely stunted
+PRdata <- PRdata %>%
+  mutate(nt_ch_sev_stunt =
+           case_when(
+             hv103==1 &  hc70< -300  ~ 1 ,
+             hv103==1 &  hc70>= -300 & hc70<9996 ~ 0 ,
+             hc70>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_sev_stunt = c(99))) %>%
+  set_value_labels(nt_ch_sev_stunt = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_sev_stunt = "Severely stunted child under 5 years")
+
+# //Stunted
+PRdata <- PRdata %>%
+  mutate(nt_ch_stunt =
+           case_when(
+             hv103==1 &  hc70< -200  ~ 1 ,
+             hv103==1 &  hc70>= -200 & hc70<9996 ~ 0 ,
+             hc70>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_stunt = c(99))) %>%
+  set_value_labels(nt_ch_stunt = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_stunt = "Stunted child under 5 years")
+
+# //Mean haz
+PRdata <- PRdata %>%
+  mutate(haz = case_when(hv103 ==1 & hc70<996 ~ hc70/100)) 
+PRdata$nt_ch_mean_haz <- matrixStats::weightedMean(PRdata$haz, PRdata$wt, idxs = NULL, na.rm = TRUE) 
+
+# //Severely wasted 
+PRdata <- PRdata %>%
+  mutate(nt_ch_sev_wast =
+           case_when(
+             hv103==1 &  hc72< -300  ~ 1 ,
+             hv103==1 &  hc72>= -300 & hc72<9996 ~ 0 ,
+             hc72>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_sev_wast = c(99))) %>%
+  set_value_labels(nt_ch_sev_wast = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_sev_wast = "Severely wasted child under 5 years")
+
+# //Wasted
+PRdata <- PRdata %>%
+  mutate(nt_ch_wast =
+           case_when(
+             hv103==1 &  hc72< -200  ~ 1 ,
+             hv103==1 &  hc72>= -200 & hc72<9996~ 0 ,
+             hc72>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_wast = c(99))) %>%
+  set_value_labels(nt_ch_wast = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_wast = "Wasted child under 5 years")
+
+# //Overweight for height
+PRdata <- PRdata %>%
+  mutate(nt_ch_ovwt_ht =
+           case_when(
+             hv103==1 &  hc72> 200 & hc72<9996 ~ 1 ,
+             hv103==1 &  hc72<= 200 & hc72<9996 ~ 0 ,
+             hc72>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_ovwt_ht = c(99))) %>%
+  set_value_labels(nt_ch_ovwt_ht = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_ovwt_ht = "Overweight for height child under 5 years")
+
+# //Mean whz
+PRdata <- PRdata %>%
+  mutate(whz = case_when(hv103 ==1 & hc72<996 ~ hc72/100)) 
+PRdata$nt_ch_mean_whz <- matrixStats::weightedMean(PRdata$whz, PRdata$wt, idxs = NULL, na.rm = TRUE) 
+
+# //Severely underweight
+PRdata <- PRdata %>%
+  mutate(nt_ch_sev_underwt =
+           case_when(
+             hv103==1 &  hc71< -300  ~ 1 ,
+             hv103==1 &  hc71>= -300 & hc71<9996 ~ 0 ,
+             hc71>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_sev_underwt = c(99))) %>%
+  set_value_labels(nt_ch_sev_underwt = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_sev_underwt = "Severely underweight child under 5 years")
+
+# //Underweight
+PRdata <- PRdata %>%
+  mutate(nt_ch_underwt =
+           case_when(
+             hv103==1 &  hc71< -200  ~ 1 ,
+             hv103==1 &  hc71>= -200  & hc71<9996 ~ 0 ,
+             hc71>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_underwt = c(99))) %>%
+  set_value_labels(nt_ch_underwt = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_underwt = "Underweight child under 5 years")
+# 
+# //Overweight for age
+PRdata <- PRdata %>%
+  mutate(nt_ch_ovwt_age =
+           case_when(
+             hv103==1 &  hc71> 200 & hc71<9996 ~ 1 ,
+             hv103==1 &  hc71<= 200  & hc71<9996 ~ 0 ,
+             hc71>=9996 ~ 99)) %>%
+  replace_with_na(replace = list(nt_ch_ovwt_age = c(99))) %>%
+  set_value_labels(nt_ch_ovwt_age = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_ovwt_age = "Overweight for age child under 5 years")
+
+# //Mean waz
+PRdata <- PRdata %>%
+  mutate(waz = case_when(hv103 ==1 & hc71<996 ~ hc71/100)) 
+PRdata$nt_ch_mean_waz <- matrixStats::weightedMean(PRdata$waz, PRdata$wt, idxs = NULL, na.rm = TRUE) 
+
+# *** Anemia indicators ***
+
+# //Any anemia
+PRdata <- PRdata %>%
+  mutate(nt_ch_any_anem =
+           case_when(
+             hv103==1 & hc1>5 & hc1<60 & hc56<110 ~ 1 ,
+             hv103==1 & hc1>5 & hc1<60 & hc56>=110 ~ 0)) %>%
+  set_value_labels(nt_ch_any_anem = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_any_anem = "Any anemia - child 6-59 months")
+
+# //Mild anemia
+PRdata <- PRdata %>%
+  mutate(nt_ch_mild_anem =
+           case_when(
+             hv103==1 & hc1>5 & hc1<60 & hc56>99 & hc56<110 ~ 1 ,
+             hv103==1 & hc1>5 & hc1<60 & hc56<=99 | hc56>=110 ~ 0)) %>%
+  set_value_labels(nt_ch_mild_anem = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_mild_anem = "Mild anemia - child 6-59 months")
+
+# //Moderate anemia
+PRdata <- PRdata %>%
+  mutate(nt_ch_mod_anem =
+           case_when(
+             hv103==1 & hc1>5 & hc1<60 & hc56>69 & hc56<100 ~ 1 ,
+             hv103==1 & hc1>5 & hc1<60 & hc56<=69 | hc56>=100 ~ 0)) %>%
+  set_value_labels(nt_ch_mod_anem = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_mod_anem = "Moderate anemia - child 6-59 months")
+
+# //Severe anemia
+PRdata <- PRdata %>%
+  mutate(nt_ch_sev_anem =
+           case_when(
+             hv103==1 & hc1>5 & hc1<60 & hc56<70 ~ 1 ,
+             hv103==1 & hc1>5 & hc1<60 & hc56>=70 ~ 0)) %>%
+  set_value_labels(nt_ch_sev_anem = c("Yes" = 1, "No"=0  )) %>%
+  set_variable_labels(nt_ch_sev_anem = "Severe anemia - child 6-59 months")
+
+
+
+
+# labelling data
+PRdata <- forcats::as_factor(PRdata, only_labelled = TRUE)
+
+# svy_dt<-svydesign(data = PRdata, ids = ~hv021,strata = ~hv022, weights = ~hv005)
+# 
+# 
+# svy_dt %>% 
+#   tbl_svysummary(include =c("nt_ch_stunt", "nt_ch_sev_stunt"))
+
+
+
+# ------------------------------------------------------------------------
+# shape file of Nepal
+nepal<-sf::st_read("Datasets/hermes_NPL_new_wgs(1)/hermes_NPL_new_wgs_2.shp")
+
+# cluster GPS points
+cluster<-sf::st_read("Datasets/GPS_NDHS2022/NPGE81FL/NPGE81FL.shp")
+
+# clipped_data<-st_intersection(nepal,cluster)
+# st_write(clipped_data3, "Datasets/GPS_NDHS2022/districts.shp")
+# 
+# 
+# clipped_data2<-clipped_data[, c(1:24)]
+# 
+# clipped_data3<-clipped_data2[, 1:8]
+# 
+
+
+clipped_data3<-st_read("Datasets/GPS_NDHS2022/districts.shp")
+
+PRdata<-PRdata %>% 
+  fuzzyjoin::stringdist_left_join(clipped_data3, by =c("shdist"="DISTRICT"), max_dist = 1 ) %>% 
+  mutate(District=ifelse(shdist=="makwanpur", "Makawanpur", as.character(DISTRICT)),
+         District=ifelse(shdist=="nawalparasi east", "Nawalpur", District),
+         District=ifelse(shdist=="nawalparasi west", "Parasi", District),
+         District=ifelse(shdist=="rukum west", "Rukum West", District),
+         DISTRICT=ifelse(shdist=="kavrepalanchok", "Kabhrepalanchok", District),
+         )
+
+
+
+
+# 
+
+# ggplot() +
+#   geom_sf(data = nepal)+
+#   geom_sf(data=clipped_data2)+
+#   xlab("Longitude") + ylab("Latitude")+
+#   annotation_scale(location = "bl", width_hint = 0.3) +
+#   annotation_north_arrow(location = "tr", which_north = "true", 
+#                          pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+#                          style = north_arrow_fancy_orienteering) +
+#   theme_bw()
+# 
+# 
+
+
+library(INLA)
+library(spdep)
+
+# Create spatial adjacency matrix
+regions_shapefile <- readOGR("Datasets/hermes_NPL_new_wgs(1)/hermes_NPL_new_wgs_2.shp")
+
+
+dist_list<-c("Achham", "Arghakhanchi", "Baglung", "Baitadi", "Bajhang", 
+  "Bajura", "Banke", "Bara", "Bardiya", "Bhaktapur", "Bhojpur", 
+  "Chitawan", "Dadeldhura", "Dailekh", "Dang", "Darchula", 
+  "Dhading", "Dhankuta", "Dhanusha", "Dolakha", "Dolpa", "Doti", 
+  "Gorkha", "Gulmi", "Humla", "Ilam", "Jajarkot", "Jhapa", 
+  "Jumla", "Kabhrepalanchok", "Kailali", "Kalikot", "Kanchanpur", 
+  "Kapilbastu", "Kaski", "Kathmandu", "Khotang", "Lalitpur", 
+  "Lamjung", "Mahottari", "Makawanpur", "Manang", "Morang", 
+  "Mugu", "Mustang", "Myagdi", "Nawalpur", "Nuwakot", "Okhaldhunga", 
+  "Palpa", "Panchthar", "Parasi", "Parbat", "Parsa", "Pyuthan", 
+  "Ramechhap", "Rasuwa", "Rautahat", "Rolpa", "Rukum East", 
+  "Rukum West", "Rupandehi", "Salyan", "Sankhuwasabha", "Saptari", 
+  "Sarlahi", "Sindhuli", "Sindhupalchok", "Siraha", "Solukhumbu", 
+  "Sunsari", "Surkhet", "Syangja", "Tanahu", "Taplejung", "Terhathum", 
+  "Udayapur")
+regions_shapefile$DISTRICT<-factor(regions_shapefile$DISTRICT, levels=dist_list, labels = dist_list)
+regions_shapefile$DISTRICT<-as.numeric(regions_shapefile$DISTRICT)
+PRdata$DISTRICT<-as.numeric(factor(PRdata$DISTRICT, levels=dist_list, labels = dist_list))
+
+
+nb <- poly2nb(regions_shapefile,row.names = regions_shapefile$DISTRICT)
+
+adj_matrix <- nb2mat(nb, style="B", zero.policy=TRUE)
+colnames(adj_matrix)<-rownames(adj_matrix)
+
+PRdata$outcome<-ifelse(PRdata$nt_ch_wast=="No", 0, 1)
+
+PRdata2<-PRdata %>% filter(!is.na(PRdata$nt_ch_wast))
+# Define the INLA model formula
+formula <- outcome ~ hv025 + f(DISTRICT, model="besag", graph=adj_matrix,scale.model  = T)
+
+# Fit the model with INLA, including weights
+result <- inla(formula, 
+               family="binomial", 
+               control.predictor = list(compute = TRUE),
+               control.compute = list(return.marginals.predictor = TRUE),
+               data=PRdata2)
+               
+
+# Examine results
+summary(result)
+
+library(ggplot2)
+marginal <- inla.smarginal(result$marginals.fixed$hv025rural)
+marginal <- data.frame(marginal)
+ggplot(marginal, aes(x = x, y = y)) + geom_line() +
+  labs(x = expression(beta[1]), y = "Density") +
+  geom_vline(xintercept = 0, col = "black") + theme_bw()
+
+
+
+head(result$summary.fitted.values)
+
+
+nepal$RR <- result$summary.fitted.values[, "mean"]
+nepal$LL <- result$summary.fitted.values[, "0.025quant"]
+nepal$UL <- result$summary.fitted.values[, "0.975quant"]
+
+
+
+
+# Extract the fitted values (predicted probabilities)
+fitted_values <- result$summary.fitted.values
+
+# Posterior means and standard deviations for each prediction
+means <- fitted_values$mean
+sds <- fitted_values$sd
+
+# Compute the 95% credible intervals
+lower_bound <- means - 1.96 * sds
+upper_bound <- means + 1.96 * sds
+
+# Combine the results into a data frame
+predicted_results <- data.frame(DISTRICT = PRdata2$DISTRICT, 
+                                Mean = means, 
+                                Lower = lower_bound, 
+                                Upper = upper_bound)
+
+# Aggregate the results to compute mean and 95% CI per district
+prevalence_estimates <- aggregate(. ~ DISTRICT, data = predicted_results, FUN = mean)
+
+# Rename the columns for clarity
+colnames(prevalence_estimates) <- c("District", "Estimated_Prevalence", "Lower_CI", "Upper_CI")
+
+# View the results
+print(prevalence_estimates)

@@ -1,0 +1,277 @@
+rm(list=ls())
+
+#-----------------1. Install, load libraries and dataset-------------------
+#Step-1: Install and load library
+
+Packages <- c("gtsummary","foreign","survey",'labelled',"readxl", "tidyverse", "haven","rockchalk", "survey")
+
+
+new_packages <- Packages[!(Packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages, dependencies = T)
+
+#load libraries
+lapply(Packages, require, character.only=T)
+
+
+# Step-2 Load datasets
+
+# Step-2 Load dataset
+# #  household dataset
+# dhs16_hhold<- read_dta("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Projects/Secondary dataset/6 Raw Data Sets/DHS 1996-2016/2016/nphr7hdt/NPHR7HFL.DTA")
+# dhs16_hhold <- forcats::as_factor(dhs16_hhold, only_labelled = TRUE)
+# 
+# # household _member dataset
+# dhs16_hmember<- read_dta("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Projects/Secondary dataset/6 Raw Data Sets/DHS 1996-2016/2016/nppr7hdt/NPPR7HFL.DTA")
+# dhs16_hmember <- forcats::as_factor(dhs16_hmember, only_labelled = TRUE)
+
+
+# write.csv(t(data.frame(var_label(dhs16_womn))), "women_variables_label.csv", na = "")
+
+# Men dataset
+dhs22_men<- read_dta("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Projects/NDHS_secondary analysis/NDHS-2022 - Mental Health/Dataset/NPMR81DT/NPMR81FL.DTA")
+dhs22_men <- forcats::as_factor(dhs22_men, only_labelled = TRUE)
+write.csv(t(data.frame(var_label(dhs22_men))), "men_variables_label.csv", na = "")
+
+#load individual dataset
+dhs22_ind<- read_dta("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Projects/NDHS_secondary analysis/NDHS-2022 - Mental Health/Dataset/NPIR81DT/NPIR81FL.DTA")
+dhs22_ind <- forcats::as_factor(dhs22_ind, only_labelled = TRUE)
+write.csv(t(data.frame(var_label(dhs22_ind))), "ind_variables_label.csv", na = "")
+
+# household 
+dhs16_hhold<- read_dta("C:/Users/bikram.adhikari.HERDINT/OneDrive - Health Research and Social Development Forum (HERD)/Projects/NDHS_secondary analysis/NDHS-2022 _disability/Dataset/NPHR81DT/NPHR81FL.DTA")
+dhs16_hhold <- forcats::as_factor(dhs16_hhold, only_labelled = TRUE)
+
+write.csv(t(data.frame(var_label(dhs16_hhold))), "household_data_labels.csv", na="")
+
+#disability
+dis9<-dhs16_hhold |> 
+  select(hhid, hv001,hv002,hdis9_01:hdis9_26) |> 
+  gather("member", "dis9",hdis9_01:hdis9_26) |> 
+  mutate(member=gsub("hdis9_","",member),
+         member=as.numeric(member),
+         id=paste0(hhid,"  ",member))
+
+#food insecurity
+food_insecurity<-dhs16_hhold |> 
+  select(hhid,hfs_mod) |> 
+  mutate(hhid_new=gsub(" ", "", hhid))
+  
+
+
+
+
+
+womendt<-dhs22_ind |> 
+  select(
+    #ID,
+    caseid:v003,secoreg, sdist,
+    #wealth quintle
+    v190, v191, v190a, v191a,
+    # self reported health
+    v176,
+    
+    #use of internet
+    v171a,
+    
+    #self reported health
+    v176,
+    # sample wt
+    v005,
+    #PSU, , sample stratum, sample domain
+    v021, v022, v023, 
+    #province
+    v024, v101,
+    #place of residence
+    v025, v102, 
+    #Education level
+    v106,v149, 
+    #religion, ethnicity
+    v130, v131,
+    #alchol
+    v485a, v485b, 
+    #marital status
+    v501,
+    #occupation
+    v714:v717,
+    #smoke
+    v463aa, v463ab,
+    #age
+    v012,
+    #insurance
+    v481,
+    #mental health
+    mth1:mth24,v445)
+
+names(womendt)<-paste0("m",names(womendt))
+
+mendt<-dhs22_men |> 
+  select(
+    #ID
+    mcaseid:mv003, smecoreg,smdist,
+    #wealth quintle
+    mv190: mv191a,
+    #use of internet
+    mv171a,
+    # self reported
+    mv176,
+    # sample wt
+    mv005,
+    #PSU, , sample stratum, sample domain
+    mv021, mv022, mv023, 
+    #province
+    mv024, mv101,
+    #place of residence
+    mv025, mv102, 
+    #Education level
+    mv106,mv149, 
+    #religion, ethnicity
+    mv130, mv131,
+    #alchol
+    mv485a, mv485b, 
+    #marital status
+    mv501,
+    #occupation
+    mv714:mv717,mv714a,
+    #smoke
+    mv463aa, mv463ab,
+    #age
+    mv012,
+    #insurance 
+    mv481,
+    #mental health
+    mmth1:sm115, smmth6, smmth6a) |> 
+  rename("msecoreg"="smecoreg",
+         "msdist"="smdist")
+
+
+
+#Depression and anxiety classification
+mendt<-mendt |>
+  mutate(phq9=case_when(mmth22<=4~"0-4",
+                        mmth22>4 & mmth22<10~"5-9",
+                        mmth22>=10 & mmth22<15~"10-15",
+                        mmth22>=15 & mmth22<20~"15-19",
+                        mmth22>=20 & mmth22<25~"20-24"),
+         depression=ifelse(phq9=="10-15"|phq9=="15-19"|phq9=="20-24", 1, 0),
+         
+         gad=case_when(mmth24<6~"0-5",
+                       mmth24>=5 & mmth24<15~"6-14",
+                       mmth24>=15 & mmth24<=22~"15-22"),
+         anxiety=ifelse(mmth24>5, 1,0),
+         mv005=mv005/1000000,
+         Sex="Male"
+  )
+
+
+womendt<-womendt |>
+  mutate(phq9=case_when(mmth22<=4~"0-4",
+                        mmth22>4 &mmth22<10~"5-9",
+                        mmth22>=10 & mmth22<15~"10-15",
+                        mmth22>=15 & mmth22<20~"15-19",
+                        mmth22>=20 & mmth22<25~"20-24"),
+         depression=ifelse(phq9=="10-15"|phq9=="15-19"|phq9=="20-24", 1, 0),
+         gad=case_when(mmth24<6~"0-5",
+                       mmth24>=5 & mmth24<15~"6-14",
+                       mmth24>=15 & mmth24<=22~"15-22"),
+         anxiety=ifelse(mmth24>5, 1,0),
+         mv005=mv005/1000000,
+         Sex="Female") |> 
+  filter(!is.na(phq9))
+
+overall_dt<-bind_rows(mendt,womendt)
+
+dis9<-dhs16_hhold |> 
+  select(hhid, hdis9_01:hdis9_26) |> 
+  gather("member", "dis9",hdis9_01:hdis9_26) |> 
+  mutate(member=gsub("hdis9","",member),
+         id=paste0(hhid,member),
+         id=gsub("_0","  ",id),
+         id=gsub("_"," ",id))
+
+overall_dt<-overall_dt |> 
+  mutate(mcaseid=gsub("_"," ",mcaseid)) |> 
+  left_join(dis9, by=c("mcaseid"="id"),) |> 
+  mutate(dis9=ifelse(dis9=="no difficulty", 1, ifelse(dis9=="some difficulty",2, ifelse(dis9=="a lot of difficulty"|dis9=="cannot do at all",3, ifelse(dis9=="don't know", 4,NA)))),
+         dis9=factor(dis9, levels=c(1:3), labels=c("no difficulty","some difficulty","a lot diff to cannot do at all")))
+
+overall_dt <-overall_dt|>
+  left_join(food_insecurity,by = "hhid")
+
+
+overall_dt$hfs_mod<-factor(overall_dt$hfs_mod, levels = c(0,1),labels = c("no", "yes"))
+
+
+a<-overall_dt |> 
+  mutate(
+    #Geography: v025
+    `Location`=mv025,
+    # ecological: secoreg
+    `Ecologicalbelt`=msecoreg,
+    # province: v024
+    `Province`=mv101,
+    # ethnicity: v131,
+    `Ethnicity`=case_when(mv131%in%c("hill brahmin","hill chhetri")~"Brahmin_chhetri",
+                          mv131%in%c("terai brahmin/chhetri","other terai caste")~"Madheshi",
+                          mv131%in%c("hill dalit","terai dalit")~"Dalit",
+                          mv131%in%c("newar","hill janajati","terai janajati")~"Janajati",
+                          mv131%in%c("muslim","other")~"Others"
+    ),
+    Ethnicity=as.factor(Ethnicity),
+    # religion: v130
+    Religion=ifelse(mv130=="hindu", "Hindu","Non_hindu"),
+    Religion=as.factor(Religion),
+    
+    # women age: v447a
+    `Age`=mv012,
+    marital_status=ifelse(mv501=="never in union", 1, ifelse(mv501=="married"|mv501=="living with partner", 2, ifelse(mv501=="widowed"|mv501=="divorced"|mv501=="no longer living together/separated",3, NA))),
+    marital_status=factor(marital_status, levels=c(1:3), labels=c("unmarried","married_livingtog","divorced_notliving")),
+    
+    `Age_cat`=case_when(mv012<20~1,
+                        mv012>=20 & mv012<35~2,
+                        mv012>=35 & mv012<=49~3,
+    ),
+    Age_cat=factor(Age_cat, levels=c(1:3), labels=c("<20 years", "20-34 years", "35-49 years")),
+    
+    # wealth: v190
+    Wealth=mv190,
+    
+    # Education
+    `Education`=mv106,
+    
+    
+    #covered by health insurance
+    Health_insurance=mv481,
+    
+    # occupation of repondent
+    occupation_res=ifelse(mv716=="not working and didn't work in last 12 months", "Not_working", ifelse(mv716=="agriculture", "Agriculture", ifelse(mv716=="professional/technical/managerial"|mv716=="clerical", "profes_tech_manag_cler", ifelse(mv716=="sales and service", "sales_and_service", ifelse(mv716=="skilled manual"|mv716=="unskilled manual", "skilled_or_unskileld_labor", "Other"))))),
+    occupation_res=factor(occupation_res, levels=c("Not_working","Agriculture","profes_tech_manag_cler","sales_and_service","skilled_or_unskileld_labor", "Other"),labels=c("Not_working","Agriculture","profes_tech_manag_cler","sales_and_service","skilled_or_unskileld_labor", "Other")),
+    
+    current_alcohol=ifelse(mv485a=="did not have even one drink", 1,ifelse(mv485a=="never have consumed alcohol", 2, ifelse(mv485a=="every day/almost every day", 3,4 ))),
+    current_alcohol=factor(current_alcohol, levels=c(1:2,4,3), labels=c("Never drinker","No drink in past month","some drink in past month", "Everyday drink")),
+    current_smoke=ifelse(mv463ab=="do not smoke"|mv463ab=="does not smoke","Do not smoke",as.character(mv463ab)),
+    care_ever_seek=ifelse(mmth17=="yes", "yes","no"),
+    
+    careseeking_Healthcareprovider=ifelse(mmth18a=="yes", "yes","no"),
+    careseeking_social_org=ifelse(mmth18b=="yes", "yes","no"),
+    careseeking_social_worker=ifelse(mmth18c=="yes", "yes","no"),
+    careseeking__comm_health=ifelse(mmth18d=="yes", "yes","no"),
+    careseeking__religious_led=ifelse(mmth18e=="yes", "yes","no"),
+    careseeking__spouse=ifelse(mmth18f=="yes", "yes","no"),
+    careseeking__other_mem=ifelse(mmth18g=="yes", "yes","no"),
+    careseeking__friend=ifelse(mmth18h=="yes", "yes","no"),
+    careseeking__neighbor=ifelse(mmth18i=="yes", "yes","no"),
+    anxietyordepre=ifelse(depression=="Present"|anxiety=="Present", "d","nd")
+  )
+
+
+#select required variables
+
+mental_health_data<-a |>
+  select(mv001,mv005,depression, anxiety)
+  
+
+
+svy_hf<-svydesign(data = a2, ids = ~mv021,strata = ~mv022,weights = a2$mv005)
+
+
+

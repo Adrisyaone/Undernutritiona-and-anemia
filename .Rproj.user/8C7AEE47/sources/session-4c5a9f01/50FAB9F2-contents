@@ -1,0 +1,38 @@
+# install.packages("sf")
+# install.packages("sp")
+# install.packages("raster")
+# install.packages("readxk")
+
+library(leaflet)
+library(tidyverse)
+library(ggspatial)
+library(readxl)
+library(raster)
+library(sf)
+library(sp)
+library(maptiles)
+library(tidyterra)
+library(ggspatial)
+library(INLA)
+
+
+# load map of Nepal
+nepal<-sf::st_read("Datasets/Nepal all shape files/hermes_NPL_wgs_3.shp")
+
+
+#set crs
+nepal<-st_transform(nepal, crs="+proj=longlat +datum=WGS84 +no_defs")
+
+st_crs(nepal)
+
+
+# With ggplot (theme_balck and white)
+ggplot() +
+  geom_sf(data = nepal)+
+  xlab("Longitude") + ylab("Latitude")+
+  annotation_scale(location = "bl", width_hint = 0.3) +
+  annotation_north_arrow(location = "tr", which_north = "true", 
+                         pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+                         style = north_arrow_fancy_orienteering) +
+  coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
+  theme_bw()
