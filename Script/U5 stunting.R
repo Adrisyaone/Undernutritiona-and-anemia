@@ -3,17 +3,20 @@ library(haven)
 library(sjmisc)
 library(labelled)
 library(survey)
+library(tidyselect)
 library(gtsummary)
 library(tidyverse)
 library(sf)
 library(ggspatial)
+library(expss)
+library(naniar)
 
 # install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
 
 # load PR data
 PRdata <- read_dta("Datasets/NDHS22/NPPR81DT/NPPR81FL.DTA")
 PRdata <- PRdata %>%
-  mutate(wt = hv005/1000000)
+  mutate(sampling_wt = hv005/1000000)
 
 
 # Clean Outcome variables
@@ -255,19 +258,25 @@ colnames(adj_matrix)<-rownames(adj_matrix)
 PRdata$outcome<-ifelse(PRdata$nt_ch_wast=="No", 0, 1)
 PRdata2<-PRdata %>% filter(!is.na(PRdata$nt_ch_wast))
 
+# weighted variable
 
+# selected data
+selected_data<-PRdata2[, c("sampling_wt", "outcome","hc27","shecoreg","hv270", "DISTRICT","DHSID","geometry")]
+saveRDS(selected_data, "Datasets/Selected_data.RDS")
+
+dt<-readRDS("Datasets/Selected_data.RDS")
 
 # INLA model
 # Define the INLA model formula
-formula <- outcome ~ f(DISTRICT, model="besag", graph=adj_matrix,scale.model  = T)
+formula <- outcome ~hc27+shecoreg+hv270+f(DISTRICT, model="besag", graph=adj_matrix,scale.model  = T)
 
 
 # Fit the model with INLA, including weights
 result <- inla(formula, 
-               family="binomial", weights = hv005/100000, 
+               family="binomial", weights = sampling_wt, 
                control.predictor = list(compute = TRUE),
                control.compute = list(return.marginals.predictor = TRUE),
-               data=PRdata2)
+               data=dt)
                
 
 
