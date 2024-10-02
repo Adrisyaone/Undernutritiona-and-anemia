@@ -2,16 +2,11 @@
 library(haven)
 library(sjmisc)
 library(labelled)
-library(expss)
-library(tidyselect)
-library(naniar)
 library(survey)
 library(gtsummary)
 library(tidyverse)
-#library(rgdal)
 library(sf)
-library(SUMMER)
-library(INLA)
+library(ggspatial)
 
 # install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
 
@@ -19,6 +14,9 @@ library(INLA)
 PRdata <- read_dta("Datasets/NDHS22/NPPR81DT/NPPR81FL.DTA")
 PRdata <- PRdata %>%
   mutate(wt = hv005/1000000)
+
+
+# Clean Outcome variables
 
 # //Severely stunted
 PRdata <- PRdata %>%
@@ -31,6 +29,8 @@ PRdata <- PRdata %>%
   set_value_labels(nt_ch_sev_stunt = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_ch_sev_stunt = "Severely stunted child under 5 years")
 
+
+
 # //Stunted
 PRdata <- PRdata %>%
   mutate(nt_ch_stunt =
@@ -41,6 +41,8 @@ PRdata <- PRdata %>%
   replace_with_na(replace = list(nt_ch_stunt = c(99))) %>%
   set_value_labels(nt_ch_stunt = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_ch_stunt = "Stunted child under 5 years")
+
+
 
 # //Mean haz
 PRdata <- PRdata %>%
@@ -58,6 +60,8 @@ PRdata <- PRdata %>%
   set_value_labels(nt_ch_sev_wast = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_ch_sev_wast = "Severely wasted child under 5 years")
 
+
+
 # //Wasted
 PRdata <- PRdata %>%
   mutate(nt_ch_wast =
@@ -68,6 +72,8 @@ PRdata <- PRdata %>%
   replace_with_na(replace = list(nt_ch_wast = c(99))) %>%
   set_value_labels(nt_ch_wast = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_ch_wast = "Wasted child under 5 years")
+
+
 
 # //Overweight for height
 PRdata <- PRdata %>%
@@ -80,10 +86,14 @@ PRdata <- PRdata %>%
   set_value_labels(nt_ch_ovwt_ht = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_ch_ovwt_ht = "Overweight for height child under 5 years")
 
+
+
 # //Mean whz
 PRdata <- PRdata %>%
   mutate(whz = case_when(hv103 ==1 & hc72<996 ~ hc72/100)) 
 PRdata$nt_ch_mean_whz <- matrixStats::weightedMean(PRdata$whz, PRdata$wt, idxs = NULL, na.rm = TRUE) 
+
+
 
 # //Severely underweight
 PRdata <- PRdata %>%
@@ -95,6 +105,8 @@ PRdata <- PRdata %>%
   replace_with_na(replace = list(nt_ch_sev_underwt = c(99))) %>%
   set_value_labels(nt_ch_sev_underwt = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_ch_sev_underwt = "Severely underweight child under 5 years")
+
+
 
 # //Underweight
 PRdata <- PRdata %>%
@@ -175,27 +187,26 @@ PRdata <- forcats::as_factor(PRdata, only_labelled = TRUE)
 
 
 
-# ------------------------------------------------------------------------
+# ----------------------Shape file of Nepal--------------------------------------------------
 # shape file of Nepal
 nepal<-sf::st_read("Datasets/hermes_NPL_new_wgs(1)/hermes_NPL_new_wgs_2.shp")
 
 # cluster GPS points
 cluster<-sf::st_read("Datasets/GPS_NDHS2022/NPGE81FL/NPGE81FL.shp")
 
+# # clip between shape file of Nepal and cluster and save them
 # clipped_data<-st_intersection(nepal,cluster)
 # st_write(clipped_data3, "Datasets/GPS_NDHS2022/districts.shp")
-# 
-# 
 # clipped_data2<-clipped_data[, c(1:24)]
-# 
 # clipped_data3<-clipped_data2[, 1:8]
-# 
+
+# read cluster shape file
+cluster<-st_read("Datasets/GPS_NDHS2022/districts.shp")
 
 
-clipped_data3<-st_read("Datasets/GPS_NDHS2022/districts.shp")
-
+# join cluster with our main dataset by district id
 PRdata<-PRdata %>% 
-  fuzzyjoin::stringdist_left_join(clipped_data3, by =c("shdist"="DISTRICT"), max_dist = 1 ) %>% 
+  fuzzyjoin::stringdist_left_join(cluster, by =c("shdist"="DISTRICT"), max_dist = 1 ) %>% 
   mutate(District=ifelse(shdist=="makwanpur", "Makawanpur", as.character(DISTRICT)),
          District=ifelse(shdist=="nawalparasi east", "Nawalpur", District),
          District=ifelse(shdist=="nawalparasi west", "Parasi", District),
@@ -204,30 +215,12 @@ PRdata<-PRdata %>%
          )
 
 
-
-
-# 
-
-# ggplot() +
-#   geom_sf(data = nepal)+
-#   geom_sf(data=clipped_data2)+
-#   xlab("Longitude") + ylab("Latitude")+
-#   annotation_scale(location = "bl", width_hint = 0.3) +
-#   annotation_north_arrow(location = "tr", which_north = "true", 
-#                          pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
-#                          style = north_arrow_fancy_orienteering) +
-#   theme_bw()
-# 
-# 
-
-
+# Load INLA and spdep package
 library(INLA)
 library(spdep)
 
 # Create spatial adjacency matrix
 regions_shapefile <- st_read("Datasets/hermes_NPL_new_wgs(1)/hermes_NPL_new_wgs_2.shp")
-
-
 dist_list<-c("Achham", "Arghakhanchi", "Baglung", "Baitadi", "Bajhang", 
   "Bajura", "Banke", "Bara", "Bardiya", "Bhaktapur", "Bhojpur", 
   "Chitawan", "Dadeldhura", "Dailekh", "Dang", "Darchula", 
@@ -248,69 +241,59 @@ regions_shapefile$DISTRICT<-factor(regions_shapefile$DISTRICT, levels=dist_list,
 regions_shapefile$DISTRICT<-as.numeric(regions_shapefile$DISTRICT)
 PRdata$DISTRICT<-as.numeric(factor(PRdata$DISTRICT, levels=dist_list, labels = dist_list))
 
-
+# construct neighbor list from shape files containing polygons 
 nb <- spdep::poly2nb(regions_shapefile,row.names = regions_shapefile$DISTRICT)
 
+# Construct adjacent matrix
 adj_matrix <- spdep::nb2mat(nb, style="B", zero.policy=TRUE)
+
+# Keep names of column and rows same
 colnames(adj_matrix)<-rownames(adj_matrix)
 
-PRdata$outcome<-ifelse(PRdata$nt_ch_wast=="No", 0, 1)
 
+# define outcome variable
+PRdata$outcome<-ifelse(PRdata$nt_ch_wast=="No", 0, 1)
 PRdata2<-PRdata %>% filter(!is.na(PRdata$nt_ch_wast))
+
+
+
+# INLA model
 # Define the INLA model formula
-formula <- outcome ~ hv025 + f(DISTRICT, model="besag", graph=adj_matrix,scale.model  = T)
+formula <- outcome ~ f(DISTRICT, model="besag", graph=adj_matrix,scale.model  = T)
+
 
 # Fit the model with INLA, including weights
 result <- inla(formula, 
-               family="binomial", 
+               family="binomial", weights = hv005/100000, 
                control.predictor = list(compute = TRUE),
                control.compute = list(return.marginals.predictor = TRUE),
                data=PRdata2)
                
 
+
 # Examine results
 summary(result)
 
-library(ggplot2)
-marginal <- inla.smarginal(result$marginals.fixed$hv025rural)
-marginal <- data.frame(marginal)
-ggplot(marginal, aes(x = x, y = y)) + geom_line() +
-  labs(x = expression(beta[1]), y = "Density") +
-  geom_vline(xintercept = 0, col = "black") + theme_bw()
+# Fixed and random effects
+fixed_effect <-result$summary.fixed
+random_effect<-result$summary.random$DISTRICT
 
+# Estimate prevalence for each districts
+prevalence <-exp(random_effect)/(1+exp(random_effect$mean))
 
+result_dt<-data.frame(DISTRICT=random_effect$ID, Prevalence=prevalence)
 
-head(result$summary.fitted.values)
+# join prevalence data with the shape file to plot
+regions_shapefile<-regions_shapefile |> 
+  left_join(result_dt, by= "DISTRICT")
 
-
-
-
-
-# Extract the fitted values (predicted probabilities)
-fitted_values <- result$summary.fitted.values
-
-# Posterior means and standard deviations for each prediction
-means <- fitted_values$mean
-sds <- fitted_values$sd
-
-# Compute the 95% credible intervals
-lower_bound <- means - 1.96 * sds
-upper_bound <- means + 1.96 * sds
-
-# Combine the results into a data frame
-predicted_results <- data.frame(DISTRICT = PRdata2$DISTRICT, 
-                                Mean = means, 
-                                Lower = lower_bound, 
-                                Upper = upper_bound)
-
-# Aggregate the results to compute mean and 95% CI per district
-prevalence_estimates <- aggregate(. ~ DISTRICT, data = predicted_results, FUN = mean)
-
-# Rename the columns for clarity00
-colnames(prevalence_estimates) <- c("District", "Estimated_Prevalence", "Lower_CI", "Upper_CI")
-
-# View the results
-print(prevalence_estimates)
-
-
-
+# Plot shape file of Nepal with districts and prevalence of stunting
+ggplot() +
+  geom_sf(data = regions_shapefile, aes(fill=Prevalence.mean))+
+  xlab("Longitude") + ylab("Latitude")+
+  annotation_scale(location = "bl", width_hint = 0.3) +
+  annotation_north_arrow(location = "tr", which_north = "true", 
+                         pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+                         style = north_arrow_fancy_orienteering) +
+  coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
+  theme_bw()
