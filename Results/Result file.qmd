@@ -1,0 +1,159 @@
+---
+title: "Further Analysis of NHIS 2019 t0 2023"
+format: html
+editor: visual
+---
+
+```{r, include=FALSE}
+# load libraries
+library(tidyverse)
+library(gtsummary)
+library(survey)
+dt <- readRDS("C:/Users/bikra/OneDrive - The University of Memphis/Secondary mental health data analysis/dt.RDS")
+# create survey design
+svydt<-svydesign(ids = ~PPSU, strata = ~PSTRAT, nest = T,weights = ~wt, data=dt)
+```
+
+## Characteristics of survey participants
+
+```{r, warning=FALSE}
+svydt |> 
+  tbl_svysummary(include = c("SEX", "Age", "race", "education", "marital", "insurance_cov","URBRRL","REGION"), 
+                 by=year,
+                 digits = list (all_categorical()~c(0,1))
+                 ) |> 
+  add_overall() |> 
+  bold_labels()
+```
+
+## Depression and Anxiety symptoms by year
+
+```{r,warning=FALSE}
+svydt |> 
+  tbl_svysummary(include = c('ANXEV_A', "ANXFREQ_A","DEPEV_A","DEPMED_A", "DEPFREQ_A", "MHRX_A","MHTHRPY_A", "MHTPYNOW_A","MHTHDLY_A","MHTHND_A"), 
+                 by=year,
+                 digits = list (all_categorical()~c(0,1)),
+                 label = list(ANXEV_A ~"Ever had Anxiety",
+                              ANXFREQ_A ~"Frequency of Anxiety",
+                              DEPEV_A~ "Ever had depression", 
+                              DEPMED_A~"Take medication for depression" , 
+                              DEPFREQ_A~"How often depressed" , 
+                              MHRX_A~ "Took medication for other emotions/concentration/behavior/mental health, past 12 months",
+                              MHTHRPY_A ~ "Received counseling/therapy from mental health professional, past 12 months", 
+                              MHTPYNOW_A ~ "Currently receiving counseling/therapy from mental health professional",
+                              MHTHDLY_A ~"Delayed counseling, therapy due to cost, past 12 month",
+                              MHTHND_A ~ "Needed counseling, therapy but did not get it due to cost, past 12 months"
+                              )
+                 ) |> 
+  add_overall() |> 
+  bold_labels() 
+```
+
+## Depression and anxiety symptoms by year and race
+
+```{r, warning=FALSE}
+
+
+svydt |> 
+  tbl_strata( 
+    strata=race,
+    .tbl_fun = 
+      ~.x |> 
+   tbl_svysummary(include = c('ANXEV_A', "ANXFREQ_A","DEPEV_A","DEPMED_A", "DEPFREQ_A", "MHRX_A","MHTHRPY_A", "MHTPYNOW_A","MHTHDLY_A","MHTHND_A"), 
+                 by=year,
+                 digits = list (all_categorical()~c(0,1)),
+                 label = list(ANXEV_A ~"Ever had Anxiety",
+                              ANXFREQ_A ~"Frequency of Anxiety",
+                              DEPEV_A~ "Ever had depression", 
+                              DEPMED_A~"Take medication for depression" , 
+                              DEPFREQ_A~"How often depressed" , 
+                              MHRX_A~ "Took medication for other emotions/concentration/behavior/mental health, past 12 months",
+                              MHTHRPY_A ~ "Received counseling/therapy from mental health professional, past 12 months", 
+                              MHTPYNOW_A ~ "Currently receiving counseling/therapy from mental health professional",
+                              MHTHDLY_A ~"Delayed counseling, therapy due to cost, past 12 month",
+                              MHTHND_A ~ "Needed counseling, therapy but did not get it due to cost, past 12 months"
+                              )
+                 ) |> 
+  add_overall() |> 
+  bold_labels()
+  )
+```
+
+## Depression and anxiety symptoms by year and sex
+
+```{r, warning=FALSE}
+svydt |> 
+  tbl_strata( 
+    strata=SEX,
+    .tbl_fun = 
+      ~.x |> 
+   tbl_svysummary(include = c('ANXEV_A', "ANXFREQ_A","DEPEV_A","DEPMED_A", "DEPFREQ_A", "MHRX_A","MHTHRPY_A", "MHTPYNOW_A","MHTHDLY_A","MHTHND_A"), 
+                 by=year,
+                 digits = list (all_categorical()~c(0,1)),
+                 label = list(ANXEV_A ~"Ever had Anxiety",
+                              ANXFREQ_A ~"Frequency of Anxiety",
+                              DEPEV_A~ "Ever had depression", 
+                              DEPMED_A~"Take medication for depression" , 
+                              DEPFREQ_A~"How often depressed" , 
+                              MHRX_A~ "Took medication for other emotions/concentration/behavior/mental health, past 12 months",
+                              MHTHRPY_A ~ "Received counseling/therapy from mental health professional, past 12 months", 
+                              MHTPYNOW_A ~ "Currently receiving counseling/therapy from mental health professional",
+                              MHTHDLY_A ~"Delayed counseling, therapy due to cost, past 12 month",
+                              MHTHND_A ~ "Needed counseling, therapy but did not get it due to cost, past 12 months"
+                              )
+                 ) |> 
+  add_overall() |> 
+  bold_labels()
+  )
+```
+
+```{r}
+svydt |> 
+  tbl_strata( 
+    strata=Age,
+    .tbl_fun = 
+      ~.x |> 
+   tbl_svysummary(include = c('ANXEV_A', "ANXFREQ_A","DEPEV_A","DEPMED_A", "DEPFREQ_A", "MHRX_A","MHTHRPY_A", "MHTPYNOW_A","MHTHDLY_A","MHTHND_A"), 
+                 by=year,
+                 digits = list (all_categorical()~c(0,1)),
+                 label = list(ANXEV_A ~"Ever had Anxiety",
+                              ANXFREQ_A ~"Frequency of Anxiety",
+                              DEPEV_A~ "Ever had depression", 
+                              DEPMED_A~"Take medication for depression" , 
+                              DEPFREQ_A~"How often depressed" , 
+                              MHRX_A~ "Took medication for other emotions/concentration/behavior/mental health, past 12 months",
+                              MHTHRPY_A ~ "Received counseling/therapy from mental health professional, past 12 months", 
+                              MHTPYNOW_A ~ "Currently receiving counseling/therapy from mental health professional",
+                              MHTHDLY_A ~"Delayed counseling, therapy due to cost, past 12 month",
+                              MHTHND_A ~ "Needed counseling, therapy but did not get it due to cost, past 12 months"
+                              )
+                 ) |> 
+  add_overall() |> 
+  bold_labels()
+  )
+```
+
+```{r}
+svydt |> 
+  tbl_strata( 
+    strata=education,
+    .tbl_fun = 
+      ~.x |> 
+   tbl_svysummary(include = c('ANXEV_A', "ANXFREQ_A","DEPEV_A","DEPMED_A", "DEPFREQ_A", "MHRX_A","MHTHRPY_A", "MHTPYNOW_A","MHTHDLY_A","MHTHND_A"), 
+                 by=year,
+                 digits = list (all_categorical()~c(0,1)),
+                 label = list(ANXEV_A ~"Ever had Anxiety",
+                              ANXFREQ_A ~"Frequency of Anxiety",
+                              DEPEV_A~ "Ever had depression", 
+                              DEPMED_A~"Take medication for depression" , 
+                              DEPFREQ_A~"How often depressed" , 
+                              MHRX_A~ "Took medication for other emotions/concentration/behavior/mental health, past 12 months",
+                              MHTHRPY_A ~ "Received counseling/therapy from mental health professional, past 12 months", 
+                              MHTPYNOW_A ~ "Currently receiving counseling/therapy from mental health professional",
+                              MHTHDLY_A ~"Delayed counseling, therapy due to cost, past 12 month",
+                              MHTHND_A ~ "Needed counseling, therapy but did not get it due to cost, past 12 months"
+                              )
+                 ) |> 
+  bold_labels()
+  )
+```

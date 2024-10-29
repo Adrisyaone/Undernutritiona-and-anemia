@@ -14,9 +14,12 @@ library(naniar)
 # install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
 
 # load PR data
-PRdata <- read_dta("Datasets/NDHS22/NPPR81DT/NPPR81FL.DTA")
+PRdata <- read_dta("Datasets/Raw data/NDHS22/NPPR81DT/NPPR81FL.DTA")
+
+# set sampling wt to correct length
 PRdata <- PRdata %>%
   mutate(sampling_wt = hv005/1000000)
+
 
 
 # Clean Outcome variables
@@ -177,17 +180,52 @@ PRdata <- PRdata %>%
   set_variable_labels(nt_ch_sev_anem = "Severe anemia - child 6-59 months")
 
 
+# Demographic variables
+PRdata <- PRdata %>%
+  mutate(agemonths = case_when(hc1<6~ 1, hc1%in%c(6,7,8)~ 2, hc1%in%c(9,10,11)~ 3, hc1>=12&hc1<=17~ 4, 
+                               hc1>=18&hc1<=23~ 5, hc1>=24&hc1<=35~ 6, hc1>=36&hc1<=47~ 7, hc1>=48&hc1<=59~ 8)) %>%
+  set_value_labels(agemonths = c("<6"=1, "6-8"=2, "9-11"=3, "12-17"=4, "18-23"=5, "24-35"=6, "36-47"=7, "48-59"=8 )) %>%
+  set_variable_labels(agemonths = "Age of child months categories") |> 
+  filter(hc1>5 & hc1<60) |> 
+  filter(!is.na(nt_ch_any_anem) |!is.na(nt_ch_stunt) ) |> 
+  filter(!is.na(nt_ch_stunt)) |> 
+  filter(!is.na(nt_ch_any_anem)) |> 
+  filter(!is.na(nt_ch_wast))
+  
 
 
 # labelling data
 PRdata <- forcats::as_factor(PRdata, only_labelled = TRUE)
+# Extract variable names and their labels
+# write.csv(t(data.frame(var_label(PRdata))), "children_label.csv", na = "")
 
-# svy_dt<-svydesign(data = PRdata, ids = ~hv021,strata = ~hv022, weights = ~hv005)
-# 
-# 
-# svy_dt %>% 
-#   tbl_svysummary(include =c("nt_ch_stunt", "nt_ch_sev_stunt"))
 
+PRdata<-PRdata |> 
+  mutate(var=paste0(nt_ch_stunt, nt_ch_wast, nt_ch_any_anem))
+
+
+
+# Descriptive statistics
+svy_dt<-svydesign(data = PRdata, ids = ~hv021,strata = ~hv022, weights = ~sampling_wt)
+
+
+svy_dt %>%
+  tbl_svysummary(include =c("nt_ch_sev_stunt",'nt_ch_stunt', 'nt_ch_sev_wast','nt_ch_wast', 'nt_ch_ovwt_ht', 'nt_ch_sev_underwt', 'nt_ch_underwt', 'nt_ch_ovwt_age', 'nt_ch_any_anem', 'nt_ch_mild_anem', 'nt_ch_mod_anem', 'nt_ch_sev_anem', "var")) |> 
+  add_ci()
+
+
+library("ggVennDiagram")
+dt<-data.frame(PRdata$hv002, PRdata$hhid, PRdata$hv001)
+dt$stunt<-ifelse(PRdata$nt_ch_any_anem=="Yes", 1, 0)
+dt$waste<-ifelse(PRdata$nt_ch_wast=="Yes", 1, 0)
+dt$ane<-ifelse(PRdata$nt_ch_stunt=="Yes", 1, 0)
+dt$universe<-ifelse(PRdata$var=="NoNoNo", 1,0)
+ggVennDiagram(lapply(dt[,4:7], function(x) which(x == 1)) )
+
+
+combinations <- c(A=0.3, B=0.3, C=1.1, "A&B"=0.1, "A&C"=0.2, "B&C"=0.1 ,"A&B&C"=0.1,"D"=0.2,"C&D"=0.1)
+vd <- venneuler(combinations)
+plot(vd)
 
 
 # ----------------------Shape file of Nepal--------------------------------------------------
@@ -206,16 +244,8 @@ cluster<-sf::st_read("Datasets/GPS_NDHS2022/NPGE81FL/NPGE81FL.shp")
 # read cluster shape file
 cluster<-st_read("Datasets/GPS_NDHS2022/districts.shp")
 
-
-# join cluster with our main dataset by district id
-PRdata<-PRdata %>% 
-  fuzzyjoin::stringdist_left_join(cluster, by =c("shdist"="DISTRICT"), max_dist = 1 ) %>% 
-  mutate(District=ifelse(shdist=="makwanpur", "Makawanpur", as.character(DISTRICT)),
-         District=ifelse(shdist=="nawalparasi east", "Nawalpur", District),
-         District=ifelse(shdist=="nawalparasi west", "Parasi", District),
-         District=ifelse(shdist=="rukum west", "Rukum West", District),
-         DISTRICT=ifelse(shdist=="kavrepalanchok", "Kabhrepalanchok", District),
-         )
+PRdata<-PRdata %>%
+  left_join(cluster, by=c("hv021"="DHSCLUST"))
 
 
 # Load INLA and spdep package
@@ -250,32 +280,36 @@ nb <- spdep::poly2nb(regions_shapefile,row.names = regions_shapefile$DISTRICT)
 # Construct adjacent matrix
 adj_matrix <- spdep::nb2mat(nb, style="B", zero.policy=TRUE)
 
+# mat<-getAmat(regions_shapefile, regions_shapefile$DISTRICT)
+
 # Keep names of column and rows same
 colnames(adj_matrix)<-rownames(adj_matrix)
 
 
 # define outcome variable
 PRdata$outcome<-ifelse(PRdata$nt_ch_wast=="No", 0, 1)
+
+PRdata3<-PRdata |> mutate(ifelse(is.na(nt_ch_stunt), "No", as.character(nt_ch_stunt))) %>% filter(!is.na(nt_ch_stunt))
 PRdata2<-PRdata %>% filter(!is.na(PRdata$nt_ch_wast))
 
 # weighted variable
 
 # selected data
-selected_data<-PRdata2[, c("sampling_wt", "outcome","hc27","shecoreg","hv270", "DISTRICT","DHSID","geometry")]
+selected_data<-PRdata2[, c("sampling_wt", "outcome","hc27","shecoreg","hv270","hv021","hv022","hv005", "DISTRICT","DHSID","geometry")]
 saveRDS(selected_data, "Datasets/Selected_data.RDS")
 
 dt<-readRDS("Datasets/Selected_data.RDS")
 
 # INLA model
 # Define the INLA model formula
-formula <- outcome ~hc27+shecoreg+hv270+f(DISTRICT, model="besag", graph=adj_matrix,scale.model  = T)
+formula <- outcome ~1+f(DISTRICT, model="besag", graph=adj_matrix,scale.model  = T)
 
 
 # Fit the model with INLA, including weights
 result <- inla(formula, 
                family="binomial", weights = sampling_wt, 
                control.predictor = list(compute = TRUE),
-               control.compute = list(return.marginals.predictor = TRUE),
+               control.compute = list(return.marginals.predictor = TRUE, waic=T),
                data=dt)
                
 
@@ -287,8 +321,11 @@ summary(result)
 fixed_effect <-result$summary.fixed
 random_effect<-result$summary.random$DISTRICT
 
+
+
+
 # Estimate prevalence for each districts
-prevalence <-exp(random_effect)/(1+exp(random_effect$mean))
+prevalence <-(exp(fixed_effect[, "mean"]+random_effect$mean))/(1+exp(fixed_effect[, "mean"]+random_effect$mean))
 
 result_dt<-data.frame(DISTRICT=random_effect$ID, Prevalence=prevalence)
 
@@ -296,13 +333,44 @@ result_dt<-data.frame(DISTRICT=random_effect$ID, Prevalence=prevalence)
 regions_shapefile<-regions_shapefile |> 
   left_join(result_dt, by= "DISTRICT")
 
+
+
 # Plot shape file of Nepal with districts and prevalence of stunting
-ggplot() +
-  geom_sf(data = regions_shapefile, aes(fill=Prevalence.mean))+
-  xlab("Longitude") + ylab("Latitude")+
-  annotation_scale(location = "bl", width_hint = 0.3) +
-  annotation_north_arrow(location = "tr", which_north = "true", 
-                         pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
-                         style = north_arrow_fancy_orienteering) +
-  coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
-  theme_bw()
+# ggplot() +
+#   geom_sf(data = regions_shapefile, aes(fill=Prevalence.mean))+
+#   xlab("Longitude") + ylab("Latitude")+
+#   annotation_scale(location = "bl", width_hint = 0.3) +
+#   annotation_north_arrow(location = "tr", which_north = "true", 
+#                          pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+#                          style = north_arrow_fancy_orienteering) +
+#   coord_sf(xlim = c(79.9, 88.2), ylim = c(26, 30.5))+
+#   theme_bw()
+
+
+
+
+
+
+
+
+# USing summer package
+library(SUMMER)
+
+# Construct adjacent matrix
+adj_matrix <- spdep::nb2mat(nb, style="B", zero.policy=TRUE)
+
+mat<-getAmat(regions_shapefile, regions_shapefile$DISTRICT)
+
+
+data("BRFSS")
+
+
+
+d2<-dt[, 1:10]
+
+svy_dt<-svydesign(data = d2, ids = ~hv021, strata = ~hv022, weights = ~hv005)
+
+summer.dhs<-smoothArea(formula =outcome~1, domain = ~DISTRICT, transform = "logit", adj.mat = mat, level=0.95, design=svy_dt )
+
+
+
