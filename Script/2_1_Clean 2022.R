@@ -3,10 +3,10 @@ rm(list=ls())
 # load Script 1
 source("Script/1 Functions, load datasets and packages.R")
 
-# assign PRdata 2022 to PRdata
+# PR data processing
 PRdata<-PRdata2022
 
-# Clean Outcome variables
+# # Clean Outcome variables from PR data
 # //Severely stunted
 PRdata <- PRdata %>%
   mutate(nt_ch_sev_stunt =
@@ -164,28 +164,143 @@ PRdata <- PRdata %>%
   set_variable_labels(nt_ch_sev_anem = "Severe anemia - child 6-59 months")
 
 
-# Demographic variables
+# // Demographic variables
 PRdata <- PRdata %>%
   mutate(agemonths = case_when(hc1<6~ 1, hc1%in%c(6,7,8)~ 2, hc1%in%c(9,10,11)~ 3, hc1>=12&hc1<=17~ 4, 
                                hc1>=18&hc1<=23~ 5, hc1>=24&hc1<=35~ 6, hc1>=36&hc1<=47~ 7, hc1>=48&hc1<=59~ 8),
-         education=ifelse(hc61==1 |hc61==2, 2, ifelse(hc61==3 |hc61==4, 3, ifelse(hc61==5, 4,ifelse(hc61==0, 0, NA)))),
-         education=factor(education, levels=c(1:4), labels=c("No education", "Primary", "Secondary", "Above"))) %>%
+        education=ifelse(hc61==1 |hc61==2, 2, ifelse(hc61==3 |hc61==4, 3, ifelse(hc61==5, 4,ifelse(hc61==0, 0, NA)))),
+        education=factor(education, levels=c(1:4), labels=c("No education", "Primary", "Secondary", "Above")), # not working well
+         score=hfs1+hfs2+hfs3+hfs4+hfs5+hfs6+hfs7+hfs8,
+         hfs=case_when((hfs1==1 | hfs2==1 | hfs3==1)& hfs4==0 & hfs5==0 & hfs6==0 & hfs7==0 & hfs8==0 ~ 2,
+                       (hfs4==1 | hfs5==1 | hfs6==1) & hfs7==0 & hfs8==0 ~ 3,
+                       hfs7==1 | hfs8==1 ~ 4,
+                       hfs1==0 & hfs2==0 & hfs3==0 & hfs4==0 & hfs5==0 & hfs6==0 & hfs7==0 & hfs8==0 ~1),
+         hfs=factor(hfs, levels=c(1:4), labels=c("No", "Mild", "Moderate", "Severe"), ordered = T)
+                       ) %>% 
   set_value_labels(agemonths = c("<6"=1, "6-8"=2, "9-11"=3, "12-17"=4, "18-23"=5, "24-35"=6, "36-47"=7, "48-59"=8 )) %>%
-  set_variable_labels(agemonths = "Age of child months categories") |>
-  filter(hc1>5 & hc1<60) |>
-  filter(!is.na(nt_ch_any_anem) |!is.na(nt_ch_stunt) ) |>
-  filter(!is.na(nt_ch_stunt)) |>
-  filter(!is.na(nt_ch_any_anem)) |>
-  filter(!is.na(nt_ch_wast))
+  set_variable_labels(agemonths = "Age of child months categories") # |>
+  # filter(hc1>5 & hc1<60) |>
+  # filter(!is.na(nt_ch_any_anem) |!is.na(nt_ch_stunt) ) |>
+  # filter(!is.na(nt_ch_stunt)) |>
+  # filter(!is.na(nt_ch_any_anem)) |>
+  # filter(!is.na(nt_ch_wast))
 
 
 
 
-# PRdata <- forcats::as_factor(PRdata, only_labelled = TRUE)
+# Pull data from IR to PR
+# // select required data from IR 
+IRdata2022_sub<-IRdata2022 |> 
+  select(caseid,v190,v218,v012,v130,v013,v131,v171b, v157, v481, v701,v106,v743a, v743b, v743d , d106, d107, d108)
 
+
+# // Generate ID to merge PR data with IR data 
+PRdata<-PRdata |> 
+  mutate(
+    clusterID=ifelse(nchar(hv001)==1, paste0("       ", hv001), 
+                        ifelse(nchar(hv001)==2, paste0("      ", hv001), 
+                               ifelse(nchar(hv001)==3, paste0("     ", hv001),
+                                      ifelse(nchar(hv001)==4, paste0("    ", hv001),
+                                             ifelse(nchar(hv001)>5, paste0("NV", hv001), NA))))),
+    household_id=ifelse(nchar(hv002)==1, paste0("   ", hv002), 
+                        ifelse(nchar(hv002)==2, paste0("  ", hv002), 
+                               ifelse(nchar(hv002)==3, paste0(" ", hv002), NA))),
+    line_id=ifelse(nchar(hc60)==1, paste0("  ", hc60), 
+                   ifelse(nchar(hc60)==2, paste0(" ", hc60), NA)),
+    id=paste0(clusterID,household_id),
+    mother_id=paste0(id, line_id)) |> 
+  left_join(IRdata2022_sub, by=c("mother_id"="caseid"))
+
+
+# // Generate ID in PRdata to join with the KR data
+PRdata<-PRdata |> 
+  mutate(idx=ifelse(nchar(hvidx)==1, paste0("  ", hvidx), ifelse(nchar(hvidx)==2, paste0(" ", hvidx), NA)),
+         caseid=paste0(hhid, idx))
+
+
+
+# // Process KR data to generate MDD to merge with PR data
+dt<-KRdata2022
+dt<-dt |> 
+  mutate(clusterID=ifelse(nchar(v001)==1, paste0("       ", v001), 
+                          ifelse(nchar(v001)==2, paste0("      ", v001), 
+                                 ifelse(nchar(v001)==3, paste0("     ", v001),
+                                        ifelse(nchar(v001)==4, paste0("    ", v001),
+                                               ifelse(nchar(v001)>5, paste0("NV", v001), NA))))),
+         household_id=ifelse(nchar(v002)==1, paste0("   ", v002), 
+                             ifelse(nchar(v002)==2, paste0("  ", v002), 
+                                    ifelse(nchar(v002)==3, paste0(" ", v002), NA))),
+         line_id=ifelse(nchar(b16)==1, paste0("  ", b16), 
+                        ifelse(nchar(b16)==2, paste0(" ", b16), NA)),
+         id=paste0(clusterID,household_id),
+         child_id=paste0(id, line_id))
+
+dt<-data.table::setDT(dt)
+dt <- dt |> filter(b19 < 24 & b9 == 0)
+dt <- dt %>%
+  filter(caseid != lag(caseid) | is.na(lag(caseid)))
+dt <- dt %>%
+  filter(row_number() == 1 | caseid != lag(caseid) | is.na(lag(caseid)))
+dt <- dt |> filter(b19 >= 6)
+dt <- dt |> mutate(breastmilk = ifelse(m4 == 95,1,0))
+dt[is.na(breastmilk), breastmilk := 0]
+dt <- dt |> mutate(grains = ifelse(v414e == 1 | v414f == 1,1,0))
+dt[is.na(grains), grains := 0]
+dt <- dt |> mutate(legumes = ifelse(v414o == 1 | v414c == 1,1,0))
+dt[is.na(legumes), legumes := 0]
+dt <- dt |> mutate(dairy = ifelse( v411 == 1 | v411a == 1 | v414v == 1 | v414p == 1 | v413a == 1 , 1,0))
+dt[is.na(dairy), dairy := 0]
+#v411 == 1 | v411a == 1 |
+dt <- dt |> mutate(flesh = ifelse(v414h == 1 | v414m == 1 | v414n == 1 | v414b == 1 , 1,0))
+dt[is.na(flesh), flesh := 0]
+dt <- dt |> mutate(egg = ifelse(v414g == 1,1,0))
+dt[is.na(egg), egg := 0]
+dt <- dt |> mutate(fruits = ifelse(v414i == 1 | v414j == 1 | v414k == 1 | v414wa == 1, 1 , 0))
+dt[is.na(fruits), fruits := 0]
+dt <- dt |> mutate(other = ifelse(v414a == 1 | v414l == 1, 1 , 0))
+dt[is.na(other), other := 0]
+dt <- dt |> mutate(minimumDV = ifelse((breastmilk + grains + legumes + dairy + flesh + egg + fruits + other) >= 5, "Yes","No"))
+
+# //Select variables from KR data to merge with PR data
+dt<-dt |> 
+  select(child_id, breastmilk,grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
+
+
+# // merge KR data and PR data
+PRdata<-PRdata |> 
+  left_join(dt, by=c("caseid"="child_id"))
+
+
+
+
+# // Processing BR data to pull some characteritics of children during their birth
+
+brdt<-BRdata2022 |> 
+  mutate(
+    clusterID=ifelse(nchar(v001)==1, paste0("       ", v001), 
+                     ifelse(nchar(v001)==2, paste0("      ", v001), 
+                            ifelse(nchar(v001)==3, paste0("     ", v001),
+                                   ifelse(nchar(v001)==4, paste0("    ", v001),
+                                          ifelse(nchar(v001)>5, paste0("NV", v001), NA))))),
+    household_id=ifelse(nchar(v002)==1, paste0("   ", v002), 
+                        ifelse(nchar(v002)==2, paste0("  ", v002), 
+                               ifelse(nchar(v002)==3, paste0(" ", v002), NA))),
+    line_id=ifelse(nchar(b16)==1, paste0("  ", b16), 
+                   ifelse(nchar(b16)==2, paste0(" ", b16), NA)),
+    id=paste0(clusterID,household_id),
+    child_id=paste0(id, line_id),
+    age_child=b19,
+  ) |> 
+  select(child_id, age_child, m17, m15, m19,m19a)
+  
+PRdata<-PRdata |> 
+  left_join(brdt, by=c("caseid"="child_id"))
+
+
+# // Select only required variables to pull to main dataset
 PRdata22<-PRdata |>
   mutate(Year=2022) |> 
-  select(Year, hv021, hv022, hv005, agemonths, hc27, hv025,shecoreg,shdist,education, hv024, hv270,hc68, nt_ch_ovwt_ht, nt_ch_mean_haz, nt_ch_mean_whz,nt_ch_underwt,nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem, )
+  select(Year, hv021, hv022, hv005, agemonths, hc27, hv025,shecoreg,shdist,education, hv024, hv270,hc68, nt_ch_ovwt_ht, nt_ch_mean_haz, nt_ch_mean_whz,nt_ch_underwt,nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem,hfs, v190,v218,v012,v013,v130,v131,v171b, v157, v481, v701,v106,hc1, v743b, v743d, grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
 
 
 

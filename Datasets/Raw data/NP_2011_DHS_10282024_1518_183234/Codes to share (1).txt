@@ -1,0 +1,125 @@
+#---------------------------IPV----------------------------------------
+
+
+
+#Outcome Variables
+
+dtF$EmotionalViolence <- dtF$d104
+
+#Physical Violence
+
+dtF$PVLessSevere <- dtF$d106
+dtF$PVMoreSevere <- dtF$d107
+dtF <- dtF%>% mutate(PhysicalViolence = as.factor(ifelse(PVLessSevere == "Yes" | PVMoreSevere == "Yes", "Yes" , "No")))
+
+
+#Sexual Violence
+
+dtF$SexualViolence <- dtF$d108
+
+
+#For Any
+
+dtF <- dtF %>% mutate(violence = as.factor(ifelse(EmotionalViolence == "Yes" | PhysicalViolence == "Yes" | SexualViolence == "Yes", "Yes", "No")))
+
+
+# Household decisions
+
+dtF <- dtF %>% mutate(health =ifelse(v743a %in% c("Respondent alone", "Respondent and husband/partner", "Respondent and other person"), 1, 0))
+
+
+
+dtF <- dtF %>% mutate(pruchase = ifelse(v743b %in% c("Respondent alone", "Respondent and husband/partner", "Respondent and other person"), 1, 0))
+dtF <- dtF %>% mutate(visit = ifelse(v743d %in% c("Respondent alone", "Respondent and husband/partner", "Respondent and other person"), 1, 0))
+
+x <- (dtF$health + dtF$pruchase + dtF$visit)
+
+dtF <- dtF %>% mutate(housedecision = as.factor(ifelse(x == 0 ,"No participation", "Participation")))
+
+
+
+
+
+#---------------------Minimum Dietary Diversity------------------------------------------------
+
+#Loading Packages
+library(sf)
+library(sp)
+library(leaflet)
+library(raster)
+library(ggplot2)
+library(readxl)
+library(tidyverse)
+library(ggspatial)
+
+#Reading Shape File
+nepalshp <- st_read("C:/Users/parash.sapkota/OneDrive - Health Research and Social Development Forum (HERD)/R training/Intersection/hermes_NPL_new_wgs (1)/hermes_NPL_new_wgs_2.shp")
+
+
+gp1 <- nepalshp |> filter(DISTRICT %in% c("Bardiya","Banke","Dang","Kapilbastu","Rolpa","Pyuthan","Rukum East","Parasi","Rupandehi","Baglung","Myagdi","Gorkha"))
+
+
+gp2 <- nepalshp |> filter(DISTRICT %in% c("Dhading","Makawanpur","Sindhupalchok","Ramechhap","Sindhuli","Udayapur","Khotang","Okhaldhunga","Bhojpur"))
+
+
+facility <- st_read("C:/Users/parash.sapkota/OneDrive - Health Research and Social Development Forum (HERD)/R training/Intersection/NP_2022_DHS_09252024_66_135985/NPGE82FL/NPGE82FL.shp")
+
+
+
+gp1clust <- st_intersection(gp1,facility)
+gp2clust <- st_intersection(gp2,facility)
+
+#Finding the Coordinate Reference System (CRS)
+st_crs(nepalshp)
+
+#Changing CRS 
+nepal <- st_transform(nepalshp,crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+
+#
+
+dt1 <- haven::read_dta("C:/Users/parash.sapkota/OneDrive - Health Research and Social Development Forum (HERD)/NDHS-2022 - Mental Health/Dataset/NPKR81DT/NPKR81FL.DTA")
+
+data.table::setDT(dt)
+
+dt <- dt1
+
+dt <- dt |> filter(b19 < 24 & b9 == 0)
+
+dt <- dt %>%
+  filter(caseid != lag(caseid) | is.na(lag(caseid)))
+
+dt <- dt %>%
+  filter(row_number() == 1 | caseid != lag(caseid) | is.na(lag(caseid)))
+
+
+dt <- dt |> filter(b19 >= 6)
+
+
+dt <- dt |> mutate(breastmilk = ifelse(m4 == 95,1,0))
+dt[is.na(breastmilk), breastmilk := 0]
+
+dt <- dt |> mutate(grains = ifelse(v414e == 1 | v414f == 1,1,0))
+dt[is.na(grains), grains := 0]
+
+dt <- dt |> mutate(legumes = ifelse(v414o == 1 | v414c == 1,1,0))
+dt[is.na(legumes), legumes := 0]
+
+dt <- dt |> mutate(dairy = ifelse( v411 == 1 | v411a == 1 | v414v == 1 | v414p == 1 | v413a == 1 , 1,0))
+dt[is.na(dairy), dairy := 0]
+
+#v411 == 1 | v411a == 1 |
+
+dt <- dt |> mutate(flesh = ifelse(v414h == 1 | v414m == 1 | v414n == 1 | v414b == 1 , 1,0))
+dt[is.na(flesh), flesh := 0]
+
+dt <- dt |> mutate(egg = ifelse(v414g == 1,1,0))
+dt[is.na(egg), egg := 0]
+
+dt <- dt |> mutate(fruits = ifelse(v414i == 1 | v414j == 1 | v414k == 1 | v414wa == 1, 1 , 0))
+dt[is.na(fruits), fruits := 0]
+
+dt <- dt |> mutate(other = ifelse(v414a == 1 | v414l == 1, 1 , 0))
+dt[is.na(other), other := 0]
+
+dt <- dt |> mutate(minimumDV = ifelse((breastmilk + grains + legumes + dairy + flesh + egg + fruits + other) >= 5, "Yes","No"))
