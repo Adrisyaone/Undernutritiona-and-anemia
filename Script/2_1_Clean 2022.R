@@ -1,7 +1,8 @@
 rm(list=ls())
 
-# load Script 1
-source("Script/1 Functions, load datasets and packages.R")
+# load packages, datasets and functions
+source("Script/1_1_Functions.R")
+source("Script/1_2_load dataset.R")
 
 # PR data processing
 PRdata<-PRdata2022
@@ -164,12 +165,13 @@ PRdata <- PRdata %>%
   set_variable_labels(nt_ch_sev_anem = "Severe anemia - child 6-59 months")
 
 
+
 # // Demographic variables
 PRdata <- PRdata %>%
   mutate(agemonths = case_when(hc1<6~ 1, hc1%in%c(6,7,8)~ 2, hc1%in%c(9,10,11)~ 3, hc1>=12&hc1<=17~ 4, 
                                hc1>=18&hc1<=23~ 5, hc1>=24&hc1<=35~ 6, hc1>=36&hc1<=47~ 7, hc1>=48&hc1<=59~ 8),
-        education=ifelse(hc61==1 |hc61==2, 2, ifelse(hc61==3 |hc61==4, 3, ifelse(hc61==5, 4,ifelse(hc61==0, 0, NA)))),
-        education=factor(education, levels=c(1:4), labels=c("No education", "Primary", "Secondary", "Above")), # not working well
+        education=ifelse(hc61==1 |hc61==2|hc61==3 |hc61==4 | hc61==5, 2,ifelse(hc61==0, 1, NA)),
+        education=factor(education, levels=c(1,2), labels=c("No education", "With Education")), # not working well
          score=hfs1+hfs2+hfs3+hfs4+hfs5+hfs6+hfs7+hfs8,
          hfs=case_when((hfs1==1 | hfs2==1 | hfs3==1)& hfs4==0 & hfs5==0 & hfs6==0 & hfs7==0 & hfs8==0 ~ 2,
                        (hfs4==1 | hfs5==1 | hfs6==1) & hfs7==0 & hfs8==0 ~ 3,
@@ -263,6 +265,7 @@ dt <- dt |> mutate(minimumDV = ifelse((breastmilk + grains + legumes + dairy + f
 
 # //Select variables from KR data to merge with PR data
 dt<-dt |> 
+  data.frame() |> 
   select(child_id, breastmilk,grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
 
 
@@ -300,7 +303,7 @@ PRdata<-PRdata |>
 # // Select only required variables to pull to main dataset
 PRdata22<-PRdata |>
   mutate(Year=2022) |> 
-  select(Year, hv021, hv022, hv005, agemonths, hc27, hv025,shecoreg,shdist,education, hv024, hv270,hc68, nt_ch_ovwt_ht, nt_ch_mean_haz, nt_ch_mean_whz,nt_ch_underwt,nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem,hfs, v190,v218,v012,v013,v130,v131,v171b, v157, v481, v701,v106,hc1, v743b, v743d, grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
+  select(caseid,mother_id, Year, hv021, hv022, hv005, agemonths, hc27, hv025,shecoreg,shdist,education, hv024, hv270,hc68, nt_ch_ovwt_ht, nt_ch_mean_haz, nt_ch_mean_whz,nt_ch_underwt,nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem,hfs, v190,v218,v012,v013,v130,v131,v171b, v157, v481, v701,v106,hc1, v743b, v743d,breastmilk, grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
 
 
 

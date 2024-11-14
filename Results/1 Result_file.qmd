@@ -1,0 +1,29 @@
+---
+title: "Untitled"
+format: docx
+editor: visual
+---
+
+```{r, echo=FALSE, warning=FALSE,include=FALSE}
+# load libraries
+library(tidyverse)
+library(gtsummary)
+library(survey)
+dt <- readRDS("C:/Users/bikra/OneDrive - The University of Memphis/Geospatial modelling/Datasets/Processed data/Cleaned_datasetV1.RDS")
+# create survey design
+svydt<-svydesign(ids = ~ids, strata = ~strata, nest = T,weights = ~Sampling_wt, data=dt)
+```
+
+### Characteristics of Study participants
+
+```{r, echo=FALSE, warning=FALSE}
+
+svydt |> 
+  tbl_svysummary(by = "Year", include = c("Province","Ecological_region","Place_of_residence", "Wealth_quintile","agemonths", "Sex", "Mother_education", "husband_edu", "minimumDV", "household_food_security"),
+                 digits = all_categorical()~c(0,1))
+```
+
+```{r}
+
+tab.fun1(dataset = dt, multinomlist =c("Combined", "OUTCOME2"), by = "Year" )
+```
