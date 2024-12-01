@@ -1,13 +1,12 @@
 rm(list=ls())
 
-# load packages, datasets and functions
-source("Script/1_1_Functions.R")
-source("Script/1_2_load dataset.R")
+# load Script 1
+source("Script/1 Functions, load datasets and packages.R")
 
 # PR data processing
 PRdata<-PRdata2011
 
-# Clean Outcome variables from PR data
+# Clean Outcome variables
 # //Severely stunted
 PRdata <- PRdata %>%
   mutate(nt_ch_sev_stunt =
@@ -170,8 +169,7 @@ PRdata <- PRdata %>%
   mutate(agemonths = case_when(hc1<6~ 1, hc1%in%c(6,7,8)~ 2, hc1%in%c(9,10,11)~ 3, hc1>=12&hc1<=17~ 4, 
                                hc1>=18&hc1<=23~ 5, hc1>=24&hc1<=35~ 6, hc1>=36&hc1<=47~ 7, hc1>=48&hc1<=59~ 8),
          shdist=shdistrict,
-         education=ifelse(hc61==0, 1, 2),
-         education=factor(education, levels=c(1,2), labels=c("No education", "With Education")),
+         education=factor(hc61, levels=c(0:3), labels=c("No education", "Primary", "Secondary", "Above")),
          hv024==NA,
          sh145a=sh130,
          sh145b=sh131,
@@ -245,8 +243,7 @@ dt<-dt |>
                         ifelse(nchar(b16)==2, paste0(" ", b16), NA)),
          id=paste0(clusterID,household_id),
          child_id=paste0(id, line_id))
-
-dt<-data.table(dt)
+dt<-data.frame(dt)
 dt <- dt |> filter(hw1 < 60 & b9 == 0)
 dt <- dt %>%
   filter(caseid != lag(caseid) | is.na(lag(caseid)))
@@ -272,8 +269,7 @@ dt[is.na(other), other := 0]
 dt <- dt |> mutate(minimumDV = ifelse((breastmilk + grains + legumes + dairy + flesh + egg + fruits + other) >= 5, "Yes","No"))
 
 # //Select variables from KR data to merge with PR data
-dt<-dt |>
-  data.frame() |> 
+dt<-dt |> 
   select(child_id, breastmilk,grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
 
 
@@ -285,9 +281,7 @@ PRdata<-PRdata |>
 
 PRdata11<-PRdata |> 
   mutate(Year=2011) |> 
-  select(caseid, mother_id, Year,hv021, hv022, hv005, agemonths, hc27, shecoreg, shdist,hv025,education, hv270, nt_ch_ovwt_ht, nt_ch_mean_haz, nt_ch_mean_whz, nt_ch_underwt, nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem, hfs, v190,v218,v012,v013,v130,v131, v157, v481, v701,v106, hc1,  v743b, v743d,breastmilk, grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
+  select(Year,hv021, hv022, hv005, agemonths, hc27, shecoreg, shdist,hv025, hv024,education, hv270, nt_ch_ovwt_ht, nt_ch_mean_haz, nt_ch_mean_whz, nt_ch_underwt, nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem, hfs, v190,v218,v012,v013,v130,v131, v157, v481, v701,v106, hc1,  v743b, v743d, grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
 
 
 saveRDS(PRdata11, "Datasets/Processed data/PRdata2011.RDS")
-
-
