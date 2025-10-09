@@ -318,7 +318,3 @@ ggplot(data=For_chart)+
         panel.grid = element_blank()
         )
 ```
-
-```         
-"Health Program Exposure", "Mother's Education", "Mother's participation in household decision", "Wealth Quintile"
-```
