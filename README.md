@@ -1,4 +1,4 @@
-# Assessing Undernutrition and Anemia Among Children and Women in Nepal Using DHS 2022 Data
+# **Factors Associated with Undernutrition, Anemia and Their Coexistence Among 6-59 Months Children in Nepal: A Secondary Analysis of the Nepal Demographic and Health Survey-2022**
 
 This study aimed to determine the prevalence of undernutrition, anemia, and their co-existence in Nepal, as well as determine their contributing factors among children aged 6-59 months using the **2022 Nepal Demographic and Health Survey (NDHS)** dataset. It utilizes survey-weighted analysis, descriptive summaries, regression modeling, and visualization to uncover socio-demographic and maternal determinants.
 
@@ -8,7 +8,7 @@ This study aimed to determine the prevalence of undernutrition, anemia, and thei
 
 *Bikram Adhikari1,2*, Biraj Neupane3,2, Jessica Rice1, Niharika Jha1,2, Kajol Dahal4, Parash Mani Sapkota5, Archana Shrestha6,7, Xinhua Yu1, Yu Jiang1
 
-*Affiliation:*
+***Affiliation:***
 
 1 School of Public health, University of Memphis, Tennessee, United States of America
 
