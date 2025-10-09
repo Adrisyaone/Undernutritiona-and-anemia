@@ -1,0 +1,330 @@
+---
+title: "Untitled"
+format: docx
+editor: visual
+---
+
+```{r, echo=FALSE, warning=FALSE,include=FALSE}
+# load libraries
+library(tidyverse)
+library(gtsummary)
+library(survey)
+dt <- readRDS("Datasets/Processed data/Cleaned_datasetV1.RDS")
+dt <-dt |> filter(Year==2022) |> droplevels()
+
+dt$motheredu<-ifelse(dt$Mother_education2=="no education", 1, ifelse(dt$Mother_education2=="lower basic education (1-5)"|dt$Mother_education2=="upper basic education (6-8)", 2, ifelse(dt$Mother_education2=="lower secondary (9-10)"|dt$Mother_education2=="upper secondary (11-12)", 3, ifelse(dt$Mother_education2=="more than secondary (13+)", 3,  NA))))
+dt$motheredu<-factor(dt$motheredu, levels = c(1:3), labels=c("No education", "basic ", "Secondary and Higher"))
+  
+dt$fatheredu<-ifelse(dt$v701=="no education", 1, ifelse(dt$v701=="basic", 2, ifelse(dt$v701=="secondary"|dt$v701=="higher", 3, NA)))
+dt$fatheredu<-factor(dt$fatheredu, levels = c(1:3), labels=c("No education", "basic ", "Secondary and Higher"))
+
+dt$Anemia<-factor(dt$Anemia, levels = c(0,1), labels=c("No", "Yes"))
+# create survey design
+svydt<-svydesign(ids = ~ids, weights = ~Sampling_wt, data=dt)
+
+
+```
+
+### Characteristics of Study participants
+
+```{r, echo=FALSE, warning=FALSE}
+
+svydt |> 
+  tbl_svysummary(include = c("Province","Ecological_region","Place_of_residence", "Wealth_quintile","Mother_education", "husband_edu","parity", "maternal_nut", "housedecision",  "age2","Sex", "birth_wt"),
+                 digits = all_categorical()~c(0,1)) |> 
+  as_hux_xlsx("Table 1 characterstics of survey participatns.xlsx")
+
+```
+
+### Prevalence of all form of under nutrition
+
+```{r, warning=FALSE}
+svydt |> 
+  tbl_svysummary(include = c("stunting2","wasting2","underwt2","Anemia2", "stunt_ane2", "wast_ane2", "underwt_ane2","all_under_nutrition","under_nut_multinom","undernut_number_ane_comb_multi", "Combined2_1" ),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |> 
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1))) |> 
+as_hux_xlsx("Table 2 Prevalence overall.xlsx")
+
+# tab.fun1(dataset = dt, multinomlist =c("Combined1_1", "Combined2_1", "stunt_ane2", "wast_ane2", "underwt_ane2"), by = "Year" )
+
+
+
+
+svydt |> 
+tbl_strata(
+    strata = age2,
+    .tbl_fun =
+      ~ .x |>
+  tbl_svysummary(include = c("Wealth_quintile","Mother_education", "maternal_nut", "housedecision","health_program" ),percent = "row", by= Combined2_1,
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |> 
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1)))
+)
+
+
+```
+
+### Factors associated with co-existence of under-nutrition (multinom logistic regression)
+
+```{r}
+library(foreign)
+library(nnet)
+library(sjPlot)
+
+mdel1<-multinom(formula = Combined2_1~Wealth_quintile+motheredu+housedecision+health_program+age2+Sex+Place_of_residence+fatheredu+Ecological_region+parity+maternal_nut+nt_wm_any_anem, data=dt, weights = Sampling_wt)
+
+summary(mdel1)
+tab_model(mdel1)
+ggeffects::ggeffect(mdel1) |> plot() |> sjPlot::plot_grid()
+
+performance::check_collinearity(mdel1)
+
+sjPlot::plot_model(mdel1,show.intercept = T, vline.color = "black", show.values = TRUE, terms = c("Wealth_quintilepoorer","Wealth_quintilemiddle", "Wealth_quintilericher","Wealth_quintilerichest", "motheredubasic","mothereduSecondary and Higher",  "housedecisionParticipation", "health_programYes" ),title = "Factors associated with co-existence of undernutrition and anemia", wrap.title = 1000)+
+  ggplot2::theme_bw()
+```
+
+### 
+
+### Factors associated with undernutrition (logistic regression)
+
+```{r}
+
+varlist = c("Wealth_quintile", "motheredu", "housedecision", "health_program","age2" ,"Sex", "Place_of_residence", "fatheredu", "Ecological_region", "parity", 
+            "maternal_nut", "Anemia" )
+
+outcome_var <- "under_nut_binary"
+
+# Descriptive table
+
+tab0<-svydt |> 
+  tbl_svysummary(include = varlist,
+                 digits = list(all_categorical()~c(0,1),
+                               all_continuous()~c(1,1,1)),
+                 by= outcome_var, percent = "row",type=all_categorical()~"categorical")|> 
+  bold_labels() |> 
+  modify_column_hide(columns = c("stat_1"))
+
+
+
+
+# Univariable regression
+
+# Initial model with the first variable
+model1 <- svyglm(formula = as.formula(paste0(outcome_var, "~", varlist[1])), 
+                 family = "quasibinomial", design = svydt)
+
+# Initial table
+tab1 <- tbl_regression(model1, exponentiate = T, 
+                       estimate_fun = ~style_number(., digits = 2),
+                       add_estimate_to_reference_rows = T,
+                       pvalue_fun = ~style_pvalue(., digits = 3)) |> 
+  bold_p() |> 
+  bold_labels()
+
+
+# Loop over the remaining variables in varlist
+for(i in 2:length(varlist)){
+  # Fit the model with the current variable
+  model <- svyglm(formula = as.formula(paste0(outcome_var, "~", varlist[i])), 
+                  family = "quasibinomial", design = svydt)
+  
+  # Generate the table for the current model
+  tab <- tbl_regression(model, exponentiate = T, 
+                        estimate_fun = ~style_number(., digits = 2),
+                        add_estimate_to_reference_rows = T,
+                        pvalue_fun = ~style_pvalue(., digits = 3)) |> 
+    bold_p() |> 
+    bold_labels()
+  
+  # Stack the tables
+  tab1 <- tbl_stack(list(tab1, tab))
+}
+
+
+# Multivariable regression
+# Fit the full model with the current variable
+model2 <- svyglm(formula = as.formula(paste0(outcome_var, "~", paste(varlist, collapse = "+"))), 
+                family = "quasibinomial", design = svydt)
+tab2 <- tbl_regression(model2, exponentiate = T, 
+                      estimate_fun = ~style_number(., digits = 2),
+                      add_estimate_to_reference_rows = T,
+                      pvalue_fun = ~style_pvalue(., digits = 3)) |> 
+  bold_p() |> 
+  bold_labels()
+
+
+
+
+tbl_merge(list(tab0, tab1, tab2),tab_spanner = c("n(%)", "Unadjusted", "Adjusted"))|> 
+  as_hux_xlsx("Factors_undernutrition.xlsx")
+
+model3 <- svyglm(formula = as.formula(paste0(outcome_var, "~", 1)), 
+                family = "quasibinomial", design = svydt)
+
+forward_model <- step(model2, direction = "forward", scope = list(lower = model3, upper = model2))
+```
+
+### Factors associated with anemia (logistic regression)
+
+```{r}
+varlist = c("Wealth_quintile", "motheredu", "housedecision", "health_program", "age2", "Sex", "Place_of_residence", "fatheredu", "Ecological_region", "parity", 
+            "maternal_nut", "nt_wm_any_anem","all_under_nutrition")
+
+outcome_var <- "Anemia"
+
+
+# Descriptive table
+
+tab0<-svydt |> 
+  tbl_svysummary(include = varlist,
+                 digits = list(all_categorical()~c(0,1),
+                               all_continuous()~c(1,1,1)),
+                 by= outcome_var, percent = "row",type=all_categorical()~"categorical")|> 
+  bold_labels() |> 
+  modify_column_hide(columns = c("stat_1"))
+
+
+
+
+# Univariable regression
+
+# Initial model with the first variable
+model1 <- svyglm(formula = as.formula(paste0(outcome_var, "~", varlist[1])), 
+                 family = "quasibinomial", design = svydt)
+
+# Initial table
+tab1 <- tbl_regression(model1, exponentiate = T, 
+                       estimate_fun = ~style_number(., digits = 2),
+                       add_estimate_to_reference_rows = T,
+                       pvalue_fun = ~style_pvalue(., digits = 3)) |> 
+  bold_p() |> 
+  bold_labels()
+
+
+# Loop over the remaining variables in varlist
+for(i in 2:length(varlist)){
+  # Fit the model with the current variable
+  model <- svyglm(formula = as.formula(paste0(outcome_var, "~", varlist[i])), 
+                  family = "quasibinomial", design = svydt)
+  
+  # Generate the table for the current model
+  tab <- tbl_regression(model, exponentiate = T, 
+                        estimate_fun = ~style_number(., digits = 2),
+                        add_estimate_to_reference_rows = T,
+                        pvalue_fun = ~style_pvalue(., digits = 3)) |> 
+    bold_p() |> 
+    bold_labels()
+  
+  # Stack the tables
+  tab1 <- tbl_stack(list(tab1, tab))
+}
+
+
+# Multivariable regression
+# Fit the full model with the current variable
+model2 <- svyglm(formula = as.formula(paste0(outcome_var, "~", paste(varlist, collapse = "+"))), 
+                family = "quasibinomial", design = svydt)
+tab2 <- tbl_regression(model2, exponentiate = T, 
+                      estimate_fun = ~style_number(., digits = 2),
+                      add_estimate_to_reference_rows = T,
+                      pvalue_fun = ~style_pvalue(., digits = 3)) |> 
+  bold_p() |> 
+  bold_labels()
+
+
+
+
+tbl_merge(list(tab0, tab1, tab2),tab_spanner = c("n(%)", "Unadjusted", "Adjusted"))|> 
+  as_hux_xlsx("Factors_anemia.xlsx")
+
+```
+
+# chart
+
+```{r}
+# "Wealth_quintile", "motheredu", "housedecision", "health_program",
+
+
+a <- svyby(~Anemia, ~Wealth_quintile,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~Anemia, ~motheredu,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~Anemia, ~housedecision,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~Anemia, ~health_program,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+
+# Undernutrition
+a <- svyby(~under_nut_binary, ~Wealth_quintile,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~under_nut_binary, ~motheredu,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~under_nut_binary, ~housedecision,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~under_nut_binary, ~health_program,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+# Co-existence
+a <- svyby(~Combined2_1, ~Wealth_quintile,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~Combined2_1, ~motheredu,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~Combined2_1, ~housedecision,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+
+a <- svyby(~Combined2_1, ~health_program,svydt,svymean, na.rm=F)
+ftable(a)
+confint(a)*100
+```
+
+```{r}
+library(readxl)
+For_chart <- read_excel("Datasets/For chart.xlsx")
+View(For_chart)
+For_chart$Condition<-factor(For_chart$Condition, levels = c("Anemia", "Under nutrition", "Co-existence"))
+For_chart$Cat<-factor(For_chart$Cat, levels = c("Health Program Exposure", "Mother's Education", "Mother's participation in household decision", "Wealth Quintile"), labels = c("Health Program Exposure", "Mother's Education", "Household Decision making", "Wealth Quintile"))
+For_chart$Subcat<-factor(For_chart$Subcat, levels = c("Yes", "No", "No education","Basic","Seconday and Higher","Poorest",  "Poorer", "Middle",  "Richer", "Richest"), labels = c("Yes", "No", "No education","Basic","Seconday and Higher","Poorest",  "Poorer", "Middle",  "Richer", "Richest"))
+
+ggplot(data=For_chart)+
+    geom_bar(aes(y=percent, x=Subcat, fill=Subcat),alpha=0.6, stat = "identity")+
+    geom_errorbar(aes(y=percent, x=Subcat, ymin=lci, ymax=uci), width=0.1, size=0.8)+
+    geom_text(aes(y=percent, x=Subcat, label=percent),vjust=-0.2, hjust=-0.2)+
+  ylab("Weighted percent with 95% CI")+xlab("Categories")+
+    facet_grid(rows = vars(Condition), cols = vars(Cat), scales = "free", space = "free_x")+
+  theme_bw()+
+  theme(strip.text = element_text(face = "bold"), 
+        strip.background = element_rect(fill = "lightblue"),
+        axis.title = element_text(face = "bold"), 
+        legend.position = "none",
+        panel.grid = element_blank()
+        )
+```
+
+```         
+"Health Program Exposure", "Mother's Education", "Mother's participation in household decision", "Wealth Quintile"
+```
