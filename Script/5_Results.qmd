@@ -9,9 +9,17 @@ editor: visual
 library(tidyverse)
 library(gtsummary)
 library(survey)
-dt <- readRDS("C:/Users/bdhikari/OneDrive - The University of Memphis/1 PhD program Contents/2 Projects/Undernutrition and anemia/Datasets/Processed data/Cleaned_datasetV1.RDS")
-dt <-dt |> filter(Year==2022) |> droplevels()
+# path to save results 
+path <- "C:/Users/bikra/OneDrive - The University of Memphis/1 PhD program Contents/2 Projects/Undernutrition and anemia"
+path_results <-paste0(path, "/Results")
 
+dt <- readRDS(paste0(path, "/Datasets/Processed data/Cleaned_datasetV1.RDS"))
+
+# pull labels from the spss 
+dt <-forcats::as_factor(dt, only_labelled = T)
+
+# remove unused labels from factor
+dt<-dt |> droplevels()
 
 # create survey design
 svydt<-svydesign(ids = ~ids, weights = ~Sampling_wt, data=dt)
@@ -24,41 +32,122 @@ svydt<-svydesign(ids = ~ids, weights = ~Sampling_wt, data=dt)
 ```{r, echo=FALSE, warning=FALSE}
 
 svydt |> 
-  tbl_svysummary(include = c("Province","Ecological_region","Place_of_residence", "Wealth_quintile","Mother_education", "husband_edu","parity", "maternal_nut", "housedecision",  "age2","Sex", "birth_wt"),
-                 digits = all_categorical()~c(0,1)) |> 
-  as_hux_xlsx("Table 1 characterstics of survey participatns.xlsx")
+  tbl_svysummary(include = c("Sex","Ecological_region", "Place_of_residence", "Province", "Wealth_quintile", "motheredu", "fatheredu","mothers_age_at_birth","parity", "maternal_nut", "housedecision", "health_program"),
+                 statistic = list(all_categorical()~"{p}"),
+                 digits = all_categorical()~c(1),
+                 by=age2, missing_text = "Missing",label = list("age2"="Child's age",
+                         "Ecological_region" ="Ecological region", 
+                         "Place_of_residence"="Type of place of residence", 
+                         "Province"="Province", 
+                         "Wealth_quintile" = "Wealth quintile", 
+                         "Mother_education"="Mother education", 
+                         "fatheredu"="Father’s education",
+                         "mothers_age_at_birth"="Mother’s age at birth",
+                         "parity"="Parity", 
+                         "maternal_nut"="Mother’s nutritional status", 
+                         "housedecision"="Mother’s participation in household decision making" )) |> 
+  bold_labels()|> 
+  add_overall() |> 
+  as_hux_xlsx(paste0(path_results,"/Table 1 characterstics of survey participatns.xlsx"))
 
 ```
 
 ### Prevalence of all form of under nutrition
 
 ```{r, warning=FALSE}
-svydt |> 
-  tbl_svysummary(include = c("stunting2","wasting2","underwt2","Anemia2", "stunt_ane2", "wast_ane2", "underwt_ane2","all_under_nutrition","under_nut_multinom","undernut_number_ane_comb_multi", "Combined2_1" ),percent = "column",
-                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
-  
-    bold_labels() |> 
-  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
-                          all_continuous()~purrr::partial(style_number, digits=1))) |> 
-as_hux_xlsx("Table 2 Prevalence overall.xlsx")
 
-# tab.fun1(dataset = dt, multinomlist =c("Combined1_1", "Combined2_1", "stunt_ane2", "wast_ane2", "underwt_ane2"), by = "Year" )
-
-
-
-
+# age wise
 svydt |> 
 tbl_strata(
     strata = age2,
     .tbl_fun =
       ~ .x |>
-  tbl_svysummary(include = c("Wealth_quintile","Mother_education", "maternal_nut", "housedecision","health_program" ),percent = "row", by= Combined2_1,
+  tbl_svysummary(include = c("all_under_nutrition", "stunting2", "wasting2", "underwt2"),percent = "column",
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
   
-    bold_labels() |> 
+    bold_labels() |>
+    add_overall() |> 
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
                           all_continuous()~purrr::partial(style_number, digits=1)))
-)
+)|> 
+  as_hux_xlsx(paste0(path_results,"/Table for Figure 1: prevalence of different undernutritions and their coexistence (age specific).xlsx"))
+
+# overall
+svydt |> 
+  tbl_svysummary(include = c("all_under_nutrition", "stunting2", "wasting2", "underwt2"),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |>
+    add_overall() |> 
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1))) |> 
+  as_hux_xlsx(paste0(path_results,"/Table for Figure 1: prevalence of different undernutritions and their coexistence (overall).xlsx"))
+
+```
+
+### Prevalence of anemia
+
+```{r, warning=FALSE}
+
+# age wise
+svydt |> 
+tbl_strata(
+    strata = age2,
+    .tbl_fun =
+      ~ .x |>
+  tbl_svysummary(include = c("Anemia_all"),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |>
+    add_overall() |> 
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1))))|> 
+  as_hux_xlsx(paste0(path_results,"/Table for Figure 2: prevalence of anemia (age specific).xlsx"))
+
+# overall
+svydt |> 
+  tbl_svysummary(include = c("Anemia_all"),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |>
+    add_overall() |> 
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1))) |> 
+  as_hux_xlsx(paste0(path_results,"/Table for Figure 2: prevalence of anemia(overall).xlsx"))
+
+```
+
+# Table 3: Prevalence of co-existence of undernutrtion and anemia
+
+```{r}
+# table 3: 
+svydt |> 
+tbl_strata(
+    strata = age2,
+    .tbl_fun =
+      ~ .x |>
+  tbl_svysummary(include = c("Combined2_1"),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |>
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1)))
+) %>% 
+    as_hux_xlsx(paste0(path_results,"/Table 3: prevalence of coexistence of undernutrition and anemia (overall).xlsx"))
+
+
+# table 4
+svydt |> 
+tbl_strata(
+    strata = age2,
+    .tbl_fun =
+      ~ .x |>
+  tbl_svysummary(include = c("Wealth_quintile","motheredu", "housedecision","health_program","maternal_nut" ),percent = "row", by="Combined2_1",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}", missing = "no") |>  
+  
+    bold_labels()) |>
+    as_hux_xlsx(paste0(path_results,"/Table 3_prevalence of coexistence of undernutrition and anemia across exposure by age.xlsx"))
+
 
 
 ```
@@ -70,13 +159,27 @@ library(foreign)
 library(nnet)
 library(sjPlot)
 
-mdel1<-multinom(formula = Combined2_1~Wealth_quintile+motheredu+housedecision+health_program+age2+Sex+Place_of_residence+fatheredu+Ecological_region+parity+maternal_nut+nt_wm_any_anem, data=dt, weights = Sampling_wt)
+mdel1<-multinom(formula = Combined2_1~Wealth_quintile+motheredu+housedecision+health_program+age2+Sex+Place_of_residence+Province+fatheredu+Ecological_region+parity+maternal_nut+nt_wm_any_anem, data=dt, weights = Sampling_wt)
+
+performance::check_collinearity(mdel1)
+# Due to colinearity province was removed  as VIF was 13.31
+
+
+# model after removing province
+mdel1<-multinom(formula = Combined2_1~Wealth_quintile+motheredu+housedecision+health_program+age2+Sex+Place_of_residence+parity+fatheredu+Ecological_region+maternal_nut+nt_wm_any_anem, data=dt, weights = Sampling_wt)
+
+performance::check_collinearity(mdel1)
 
 summary(mdel1)
 tab_model(mdel1)
-ggeffects::ggeffect(mdel1) |> plot() |> sjPlot::plot_grid()
+tbl_regression(mdel1, exponentiate=T)
 
-performance::check_collinearity(mdel1)
+
+
+
+
+
+
 
 sjPlot::plot_model(mdel1,show.intercept = T, vline.color = "black", show.values = TRUE, terms = c("Wealth_quintilepoorer","Wealth_quintilemiddle", "Wealth_quintilericher","Wealth_quintilerichest", "motheredubasic","mothereduSecondary and Higher",  "housedecisionParticipation", "health_programYes" ),title = "Factors associated with co-existence of undernutrition and anemia", wrap.title = 1000)+
   ggplot2::theme_bw()
@@ -88,8 +191,7 @@ sjPlot::plot_model(mdel1,show.intercept = T, vline.color = "black", show.values 
 
 ```{r}
 
-varlist = c("Wealth_quintile", "motheredu", "housedecision", "health_program","age2" ,"Sex", "Place_of_residence", "fatheredu", "Ecological_region", "parity", 
-            "maternal_nut", "Anemia" )
+varlist = c("age2", "Wealth_quintile", "motheredu", "housedecision", "health_program" ,"Sex", "Place_of_residence", "fatheredu", "Ecological_region", "parity", "maternal_nut")
 
 outcome_var <- "under_nut_binary"
 
@@ -167,7 +269,7 @@ forward_model <- step(model2, direction = "forward", scope = list(lower = model3
 
 ```{r}
 varlist = c("Wealth_quintile", "motheredu", "housedecision", "health_program", "age2", "Sex", "Place_of_residence", "fatheredu", "Ecological_region", "parity", 
-            "maternal_nut", "nt_wm_any_anem","all_under_nutrition")
+            "maternal_nut", "nt_wm_any_anem")
 
 outcome_var <- "Anemia"
 

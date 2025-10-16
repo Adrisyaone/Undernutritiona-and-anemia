@@ -12,14 +12,6 @@ library(survey)
 dt <- readRDS("Datasets/Processed data/Cleaned_datasetV1.RDS")
 dt <-dt |> filter(Year==2022) |> droplevels()
 
-dt$motheredu<-ifelse(dt$Mother_education2=="no education", 1, ifelse(dt$Mother_education2=="lower basic education (1-5)"|dt$Mother_education2=="upper basic education (6-8)", 2, ifelse(dt$Mother_education2=="lower secondary (9-10)"|dt$Mother_education2=="upper secondary (11-12)", 3, ifelse(dt$Mother_education2=="more than secondary (13+)", 3,  NA))))
-dt$motheredu<-factor(dt$motheredu, levels = c(1:3), labels=c("No education", "basic ", "Secondary and Higher"))
-  
-dt$fatheredu<-ifelse(dt$v701=="no education", 1, ifelse(dt$v701=="basic", 2, ifelse(dt$v701=="secondary"|dt$v701=="higher", 3, NA)))
-dt$fatheredu<-factor(dt$fatheredu, levels = c(1:3), labels=c("No education", "basic ", "Secondary and Higher"))
-
-dt$Anemia<-factor(dt$Anemia, levels = c(0,1), labels=c("No", "Yes"))
-# create survey design
 svydt<-svydesign(ids = ~ids, weights = ~Sampling_wt, data=dt)
 
 

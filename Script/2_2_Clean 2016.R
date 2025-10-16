@@ -1,11 +1,12 @@
 rm(list=ls())
 
 # load packages, datasets and functions
-source("Script/1_Functions.R")
-source("Script/2_load dataset.R")
+source("Script/1_1_Functions.R")
+source("Script/1_2_load dataset.R")
+
 
 # PR data processing
-PRdata<-PRdata2022
+PRdata<-PRdata2016
 
 # # Clean Outcome variables from PR data
 # //Severely stunted
@@ -164,21 +165,20 @@ PRdata <- PRdata %>%
   set_value_labels(nt_ch_sev_anem = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_ch_sev_anem = "Severe anemia - child 6-59 months")
 
-
-
 # // Demographic variables
 PRdata <- PRdata %>%
   mutate(agemonths = case_when(hc1<6~ 1, hc1%in%c(6,7,8)~ 2, hc1%in%c(9,10,11)~ 3, hc1>=12&hc1<=17~ 4, 
                                hc1>=18&hc1<=23~ 5, hc1>=24&hc1<=35~ 6, hc1>=36&hc1<=47~ 7, hc1>=48&hc1<=59~ 8),
-        education=ifelse(hc61==1 |hc61==2|hc61==3 |hc61==4 | hc61==5, 2,ifelse(hc61==0, 1, NA)),
-        education=factor(education, levels=c(1,2), labels=c("No education", "With Education")), # not working well
-         score=hfs1+hfs2+hfs3+hfs4+hfs5+hfs6+hfs7+hfs8,
-         hfs=case_when((hfs1==1 | hfs2==1 | hfs3==1)& hfs4==0 & hfs5==0 & hfs6==0 & hfs7==0 & hfs8==0 ~ 2,
-                       (hfs4==1 | hfs5==1 | hfs6==1) & hfs7==0 & hfs8==0 ~ 3,
-                       hfs7==1 | hfs8==1 ~ 4,
-                       hfs1==0 & hfs2==0 & hfs3==0 & hfs4==0 & hfs5==0 & hfs6==0 & hfs7==0 & hfs8==0 ~1),
-         hfs=factor(hfs, levels=c(1:4), labels=c("No", "Mild", "Moderate", "Severe"))
-                       ) %>% 
+         education=ifelse(hc61==0, 1, 2),
+         education=factor(education, levels=c(1,2), labels=c("No education", "With Education")),
+         
+         
+         hds_cat=case_when((sh145a==0 |sh145a==1) & (sh145b==0 & sh145c==0 & sh145d==0 & sh145e==0 & sh145f==0 & sh145g==0 & sh145h==0 & sh145i==0 )~1,
+                           (sh145a==2 |sh145a==3 | sh145b==1 |sh145b==2 |sh145b==3| sh145c==1 |sh145d==1) & sh145e==0 & sh145f==0 & sh145g==0 & sh145h==0 & sh145i==0 ~2,
+                           (sh145c==2 |sh145c==3 |sh145d==2 |sh145d==3 |sh145e==1 |sh145e==2 |sh145f==1 |sh145f==2) & sh145g==0 & sh145h==0 & sh145i==0 ~3,
+         (sh145e==3 |sh145f==3 |sh145g==1 |sh145g==2 |sh145g==3 |sh145h==1 |sh145h==2 |sh145h==3 |sh145i==1 |sh145i==2 |sh145i==3)~4),
+         
+         hfs=factor(hds_cat, levels=c(1:4), labels=c("No", "Mild", "Moderate", "Severe"))) %>%
   set_value_labels(agemonths = c("<6"=1, "6-8"=2, "9-11"=3, "12-17"=4, "18-23"=5, "24-35"=6, "36-47"=7, "48-59"=8 )) %>%
   set_variable_labels(agemonths = "Age of child months categories") # |>
   # filter(hc1>5 & hc1<60) |>
@@ -187,13 +187,13 @@ PRdata <- PRdata %>%
   # filter(!is.na(nt_ch_any_anem)) |>
   # filter(!is.na(nt_ch_wast))
 
+
 #################IR data procesisng#######################
-IRdata <- IRdata2022 %>%
+IRdata <- IRdata2016 %>%
   mutate(nt_wm_sev_anem =
            case_when(
              v042==1 & v457==1 ~ 1 ,
-             v042==1 &  v455==0 ~ 0),
-         Mother_age=v012) %>%
+             v042==1 &  v455==0 ~ 0)) %>%
   set_value_labels(nt_wm_sev_anem = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_wm_sev_anem = "Severe anemia - women")
 
@@ -313,6 +313,7 @@ IRdata <- IRdata %>%
              v042==1 &  v455==0 ~ 0)) %>%
   set_value_labels(nt_wm_any_anem = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_wm_any_anem = "Any anemia - women")
+
 # //Mild anemia
 IRdata <- IRdata %>%
   mutate(nt_wm_mild_anem =
@@ -339,24 +340,22 @@ IRdata <- IRdata %>%
              v042==1 &  v455==0 ~ 0)) %>%
   set_value_labels(nt_wm_sev_anem = c("Yes" = 1, "No"=0  )) %>%
   set_variable_labels(nt_wm_sev_anem = "Severe anemia - women")
-
 ##########################################################
-
 
 # Pull data from IR to PR
 # // select required data from IR 
-IRdata2022_sub<-IRdata |> 
-  select(caseid,v190,v218,v012,v130,v013,v131,v171b, v157, v481, v701,v106,v743a, v743b, v743d , d106, d107, d108, nt_wm_obese, nt_wm_ovwt, nt_wm_ovobese, nt_wm_modsevthin, nt_wm_mthin, nt_wm_thin, nt_wm_norm, nt_wm_any_anem, nt_wm_mod_anem, nt_wm_sev_anem, Mother_age)
+IRdata2016_sub<-IRdata |> 
+  select(caseid,v190,v218,v012,v130,v013,v131,v171b, v157, v481, v701,v106,v743a, v743b, v743d , d106, d107, d108, nt_wm_obese, nt_wm_ovwt, nt_wm_ovobese, nt_wm_modsevthin, nt_wm_mthin, nt_wm_thin, nt_wm_norm, nt_wm_any_anem, nt_wm_mod_anem, nt_wm_sev_anem)
 
 
 # // Generate ID to merge PR data with IR data 
 PRdata<-PRdata |> 
   mutate(
     clusterID=ifelse(nchar(hv001)==1, paste0("       ", hv001), 
-                        ifelse(nchar(hv001)==2, paste0("      ", hv001), 
-                               ifelse(nchar(hv001)==3, paste0("     ", hv001),
-                                      ifelse(nchar(hv001)==4, paste0("    ", hv001),
-                                             ifelse(nchar(hv001)>5, paste0("NV", hv001), NA))))),
+                     ifelse(nchar(hv001)==2, paste0("      ", hv001), 
+                            ifelse(nchar(hv001)==3, paste0("     ", hv001),
+                                   ifelse(nchar(hv001)==4, paste0("    ", hv001),
+                                          ifelse(nchar(hv001)>5, paste0("NV", hv001), NA))))),
     household_id=ifelse(nchar(hv002)==1, paste0("   ", hv002), 
                         ifelse(nchar(hv002)==2, paste0("  ", hv002), 
                                ifelse(nchar(hv002)==3, paste0(" ", hv002), NA))),
@@ -364,7 +363,8 @@ PRdata<-PRdata |>
                    ifelse(nchar(hc60)==2, paste0(" ", hc60), NA)),
     id=paste0(clusterID,household_id),
     mother_id=paste0(id, line_id)) |> 
-  left_join(IRdata2022_sub, by=c("mother_id"="caseid"))
+  left_join(IRdata2016_sub, by=c("mother_id"="caseid"))
+
 
 
 # // Generate ID in PRdata to join with the KR data
@@ -375,7 +375,8 @@ PRdata<-PRdata |>
 
 
 # // Process KR data to generate MDD to merge with PR data
-dt<-KRdata2022
+dt<-KRdata2016
+
 dt<-dt |> 
   mutate(clusterID=ifelse(nchar(v001)==1, paste0("       ", v001), 
                           ifelse(nchar(v001)==2, paste0("      ", v001), 
@@ -390,8 +391,9 @@ dt<-dt |>
          id=paste0(clusterID,household_id),
          child_id=paste0(id, line_id))
 
-dt<-data.table::setDT(dt)
-dt <- dt |> filter(b19 < 24 & b9 == 0)
+
+dt<-data.table(dt)
+dt <- dt |> filter(b19 < 60 & b9 == 0)
 dt <- dt %>%
   filter(caseid != lag(caseid) | is.na(lag(caseid)))
 dt <- dt %>%
@@ -405,22 +407,21 @@ dt <- dt |> mutate(legumes = ifelse(v414o == 1 | v414c == 1,1,0))
 dt[is.na(legumes), legumes := 0]
 dt <- dt |> mutate(dairy = ifelse( v411 == 1 | v411a == 1 | v414v == 1 | v414p == 1 | v413a == 1 , 1,0))
 dt[is.na(dairy), dairy := 0]
-#v411 == 1 | v411a == 1 |
 dt <- dt |> mutate(flesh = ifelse(v414h == 1 | v414m == 1 | v414n == 1 | v414b == 1 , 1,0))
 dt[is.na(flesh), flesh := 0]
 dt <- dt |> mutate(egg = ifelse(v414g == 1,1,0))
 dt[is.na(egg), egg := 0]
-dt <- dt |> mutate(fruits = ifelse(v414i == 1 | v414j == 1 | v414k == 1 | v414wa == 1, 1 , 0))
+dt <- dt |> mutate(fruits = ifelse(v414i == 1 | v414j == 1 | v414k == 1 | v414w == 1, 1 , 0))
 dt[is.na(fruits), fruits := 0]
 dt <- dt |> mutate(other = ifelse(v414a == 1 | v414l == 1, 1 , 0))
 dt[is.na(other), other := 0]
 dt <- dt |> mutate(minimumDV = ifelse((breastmilk + grains + legumes + dairy + flesh + egg + fruits + other) >= 5, "Yes","No"))
 
+
 # //Select variables from KR data to merge with PR data
-dt<-dt |> 
+dt<-dt |>
   data.frame() |> 
   select(child_id, breastmilk,grains,legumes,dairy,flesh, egg,fruits,other, minimumDV)
-
 
 # // merge KR data and PR data
 PRdata<-PRdata |> 
@@ -428,10 +429,9 @@ PRdata<-PRdata |>
 
 
 
-
 # // Processing BR data to pull some characteritics of children during their birth
 
-brdt22<-BRdata2022 |> 
+brdt16<-BRdata2016 |> 
   mutate(
     clusterID=ifelse(nchar(v001)==1, paste0("       ", v001), 
                      ifelse(nchar(v001)==2, paste0("      ", v001), 
@@ -446,202 +446,23 @@ brdt22<-BRdata2022 |>
     id=paste0(clusterID,household_id),
     child_id=paste0(id, line_id),
     age_child=b19,
-    health_program=ifelse(s1115fa==1|s1115fb==1|s1115fc==1|s1115fd==1|s1115fe==1|s1115ff==1|s1115fg==1|s1115fh==1,1, 0),
+    health_program=ifelse(s1108aa==1|s1108ab==1|s1108ac==1|s1108ad==1|s1108ae==1|s1108af==1|s1108ag==1|s1108ah==1|s1108ai==1,1, 0),
     health_program=factor(health_program, levels=c(0,1), labels=c("No", "Yes")),
+
     
   ) |> 
   select(child_id, age_child, m15, m17, m18, health_program)
 
 PRdata<-PRdata |> 
-  left_join(brdt22, by=c("caseid"="child_id"))
-
-
-
-
+  left_join(brdt16, by=c("caseid"="child_id"))
 
 # // Select only required variables to pull to main dataset
-PRdata22<-PRdata |>
-  mutate(Year=2022) |> 
-  select(caseid,mother_id, Year, hv021, hv022, hv005, agemonths, hc27, hv025,shecoreg,shdist,education, hv024, hv270,hc68, nt_ch_ovwt_ht, waz, haz, whz,nt_ch_underwt,nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem,hfs, v190,v218,v012,v013,v130,v131,v171b, v157, v481, v701,v106,hc1,v743a, v743b, v743d,breastmilk, grains,legumes,dairy,flesh, egg,fruits,other, minimumDV, m15, m17, m18, health_program, nt_wm_obese, nt_wm_ovwt, nt_wm_ovobese, nt_wm_modsevthin, nt_wm_mthin, nt_wm_thin, nt_wm_norm, nt_wm_any_anem, nt_wm_mod_anem, nt_wm_sev_anem, Mother_age)
+PRdata16<-PRdata |>
+  mutate(Year=2016) |> 
+  select(caseid, mother_id, Year, hv021, hv022, hv005, agemonths, hc27, hv025,shecoreg,shdist, education, hv024, hv270, nt_ch_ovwt_ht, waz, haz, whz,nt_ch_underwt,nt_ch_sev_underwt,nt_ch_stunt,nt_ch_sev_stunt,nt_ch_sev_wast,nt_ch_wast,nt_ch_ovwt_age,nt_ch_any_anem, nt_ch_mild_anem, nt_ch_mod_anem, nt_ch_sev_anem, ,hfs, v190,v218,v012,v013,v130,v131, v157, v481, v701,v106, hc1,v743a, v743b, v743d,  breastmilk, grains,legumes,dairy,flesh, egg,fruits,other, minimumDV, health_program, m15, m17, m18, health_program, nt_wm_obese, nt_wm_ovwt, nt_wm_ovobese, nt_wm_modsevthin, nt_wm_mthin, nt_wm_thin, nt_wm_norm, nt_wm_any_anem, nt_wm_mod_anem, nt_wm_sev_anem)
 
 
 
 
-saveRDS(PRdata22, "Datasets/Processed data/PRdata2022.RDS")
-
-
-
-
-
-# Next level of cleaning 
-# load datasets
-PRdata22<-readRDS("Datasets/Processed data/PRdata2022.RDS")
-
-# strata
-PRdata22$strata <-PRdata22$hv022
-
-
-# v701 (husband's education)--> converted education 0/1 for harmonoization.
-PRdata22$husband_edu<-ifelse(PRdata22$v701==0, 0, 1)
-
-# v106 (mother's education)--> converted education 0/1 for harmonoization.
-PRdata22$edu<-ifelse(PRdata22$v106==0, 0, 1)
-
-
-
-
-
-
-# rename variable names
-PRdata<-PRdata22 |> 
-  rename("Child_id"="caseid",
-         "PSU"="hv021",
-         "Sampling_wt"="hv005",
-         "Sex"="hc27",
-         "Place_of_residence"="hv025",
-         "Ecological_region"="shecoreg",
-         "District"="shdist",
-         "Mother_education"="education",
-         "Wealth_quintile"="hv270",
-         "household_food_security"="hfs",
-         "Other_foods"="other"
-  )
-
-
-# provide id to row as row_id
-PRdata<-rownames_to_column(PRdata, "row_id")
-PRdata$ids<-paste0(PRdata$PSU, "_", PRdata$Year)
-
-
-# select only required variables for later use and order in sequential order
-PRdata<-PRdata |> 
-  select(row_id,Child_id, mother_id, Year, ids, strata, PSU, Sampling_wt, hv024,District,Ecological_region,Place_of_residence,  Wealth_quintile, agemonths, Sex, Mother_education,hc68, edu, husband_edu, breastmilk:minimumDV, household_food_security, haz, whz, waz, whz,  nt_ch_ovwt_ht:nt_ch_sev_anem, v190:v743d, m17,m18, m15, v012, health_program, nt_wm_obese, nt_wm_ovwt, nt_wm_ovobese, nt_wm_modsevthin, nt_wm_mthin, nt_wm_thin, nt_wm_norm, nt_wm_any_anem,Mother_age)
-
-
-# set sampling wt to correct length and filter the data of 
-PRdata <- PRdata %>%
-  mutate(combined_indicator=paste0(nt_ch_stunt, nt_ch_wast, nt_ch_any_anem, nt_ch_underwt),
-         Sampling_wt=Sampling_wt/1000000,
-         
-         Province=factor(hv024, levels=c(1:7), labels=c("Koshi", "Madhesh", "Bagmati", "Gandaki", "Lumbini", "Karnali", "Sudurpashchim")),
-         
-         # mother education
-         motheredu = ifelse(hc68==0, 0, ifelse(hc68==1|hc68==2, 1, ifelse(hc68==3|hc68==4|hc68==5, 2,  NA))),
-         motheredu = factor(motheredu, levels = c(0:2), labels=c("No education", "basic ", "Secondary and Higher")),
-         
-         # father education
-         fatheredu = ifelse(v701==0, 0, ifelse(v701==1, 1, ifelse(v701==2|v701==3, 2, NA))),
-         fatheredu = factor(fatheredu, levels = c(0:2), labels=c("No education", "basic ", "Secondary and Higher")),
-         
-         # anemia
-         Anemia01=ifelse(nt_ch_any_anem==1, 1,0),
-         Anemia2=ifelse(nt_ch_any_anem==1, "A","NNA"),
-         Anemia = factor(Anemia01, levels = c(0,1), labels=c("No", "Yes")),
-         
-         Anemia_all = ifelse(nt_ch_sev_anem==1|nt_ch_mod_anem==1, "Moderate to severe", ifelse(nt_ch_mild_anem==1, "Mild", ifelse(nt_ch_any_anem==0, "None", NA))),
-         
-         # undernutrition
-         stunting=ifelse(nt_ch_stunt==1, 1,0),
-         wasting=ifelse(nt_ch_wast==1, 1,0),
-         underwt=ifelse(nt_ch_underwt==1, 1,0),
-         stunting2=ifelse(nt_ch_stunt==1, "S","NS"),
-         wasting2=ifelse(nt_ch_wast==1, "W","NW"),
-         underwt2=ifelse(nt_ch_underwt==1, "UW","NUW"),
-         
-   
-         
-         under_nut_score=stunting+wasting+underwt,
-         under_nut_multinom=factor(under_nut_score, levels=c(0:3), labels=c("None", "One condition", "Two conditions", "Three conditions")),
-         undernut_number_ane_comb=paste0(under_nut_score, Anemia),
-         undernut_number_ane_comb_multi=factor(undernut_number_ane_comb, levels=c("00","01","10","11","20","21","30","31" ), labels=c("None", "Anemia only", "One condition of undernutrtion", "One cond+anemia", "2 condition+no anemia", "2 condition+anemia", "3 condition+no anemia", "3 condition+anemia")),
-         under_nut_binary=ifelse(under_nut_score>0, 1, 0),
-         under_nut_binary2=ifelse(under_nut_score>0, "UN", "NN"),
-         
-         
-         Combined1=paste(stunting2, wasting2, underwt2, Anemia2, sep = "--"),
-         Combined1_1=as.factor(Combined1),
-         Combined2= paste(under_nut_binary2,Anemia2, sep = "--"),
-         Combined2_1=factor(Combined2, levels=c("NN--NNA","NN--A","UN--NNA", "UN--A"), labels=c("Normal", "Anemia only", "Undernutrition only", "Coexistence")),
-         
-         # stunting and anemia
-         stunt_ane=paste0(stunting2,Anemia2 ),
-         stunt_ane2=factor(stunt_ane, levels=c("NSNNA","NSA", "SNNA", "SA"), labels=c("Normal", "Anemia only","Stunting only", "both")),
-         
-         # WASTING AND  ANEMIA  
-         wast_ane=paste0(wasting2,Anemia2 ),
-         wast_ane2=factor(wast_ane, levels=c("NWNNA","NWA", "WNNA", "WA"), labels=c("Normal", "Anemia only","Wasting only", "both")),
-         
-         # underwt and anemia
-         underwt_ane=paste0(underwt2,Anemia2 ),
-         underwt_ane2=factor(underwt_ane, levels=c("NUWNNA","NUWA", "UWNNA", "UWA"), labels=c("Normal", "Anemia only","Underwt only", "both")),
-         
-         all_under_nutrition=paste0(stunting, wasting, underwt),
-         
-         all_under_nutrition=factor(all_under_nutrition, levels=c("000", "100", "010", "001", "110", "101", "011","111"), labels=c("None", "Stunting only", "Wasting only", "Underweight only", "stunting+wasting only", "Stunting and underweight only", "Wasting and underweight", "All")),
-         
-         
-         # food insecurity
-         hfs=ifelse(household_food_security=="No", 1, 0),
-         hfs=factor(hfs, levels=c(0,1), labels=c("No", "Yes")),
-         
-         # Media exposure
-         media_exp=ifelse(v157==0 , 0, 1),
-         
-         # birthweight
-         birth_wt=ifelse(m18==2 |m18==1|m18==3, "Avergage or large", ifelse(m18==4, "Small", ifelse(m18==5, "Very small", NA))),
-        
-         # parity
-          parity=ifelse(v218==0, "Nullipara", ifelse(v218==1, "Primipara", ifelse(v218>1,"Multipara", NA))),
-         parity=factor(parity, levels=c("Nullipara","Primipara", "Multipara"),labels=c("Nullipara","Primipara", "Multipara")),
-        
-         # age
-          age=ifelse(hc1<24, 1, 2),
-         age2 = case_when(
-           hc1 >= 6 & hc1 <= 12 ~ 1,
-           hc1 >= 13 & hc1 <= 36 ~ 2,
-           hc1 >= 37 & hc1 <= 60 ~ 3,
-           TRUE ~ NA  # for missing or out-of-range values
-         ),
-         age2=factor(age2, levels=c(1:3), labels=c("6-12 months", "1 year to 3 years", "4 to 5 years")),
-         age=factor(age, levels=c(1,2), labels=c("6-23", "24-59")),
-         
-         #mothers age at birth
-         mage_atB =round(Mother_age-hc1/12,0),
-         mothers_age_at_birth=ifelse(mage_atB<20, 1, ifelse(mage_atB>=20 & mage_atB<35,2, ifelse(mage_atB>=35 & mage_atB<=50 , 3, NA))),
-         mothers_age_at_birth=factor( mothers_age_at_birth, levels = c(1:3), labels=c("<20years",  "20-34 years", ">=35")),
-         
-         # mothers nutritional status
-         maternal_nut=ifelse(nt_wm_norm==1, 0, ifelse(nt_wm_ovobese==1, 1, ifelse(nt_wm_mthin==1 |nt_wm_thin==1 |nt_wm_modsevthin==1, 2, NA) )),
-         maternal_nut=factor(maternal_nut, levels=c(0:2), labels=c("Normal", "Overwt obese", "thin"))
-         
-  ) |> 
-  filter(hc1>5 & hc1<60) |>
-  filter(!is.na(nt_ch_stunt)) |>
-  filter(!is.na(nt_ch_any_anem) |!is.na(nt_ch_stunt) ) |>
-  filter(!is.na(nt_ch_any_anem)) |>
-  filter(!is.na(nt_ch_wast))
-
-
-
-# clean some variables
-# decision making 
-PRdata <- PRdata %>% mutate(health =ifelse(v743a %in% c(1,2, 3), 1, 0))
-PRdata <- PRdata%>% mutate(pruchase = ifelse(v743b %in% c(1,2,3), 1, 0))
-PRdata <- PRdata %>% mutate(visit = ifelse(v743d %in% c(1,2,3), 1, 0))
-
-PRdata$x <- (PRdata$health + PRdata$pruchase + PRdata$visit)
-
-PRdata <- PRdata %>% 
-  mutate(housedecision = as.factor(ifelse(x == 0 ,"No participation", "Participation")))
-
-#--------- Outcome variable
-PRdata$OUTCOME<- ifelse(PRdata$combined_indicator=="000", 0, 
-                        ifelse(PRdata$combined_indicator=="111", 3,
-                               ifelse(PRdata$combined_indicator=="100"|PRdata$combined_indicator=="100"|PRdata$combined_indicator=="100", 1, ifelse(PRdata$combined_indicator=="110"|PRdata$combined_indicator=="101"|PRdata$combined_indicator=="011", 2, NA))))
-
-PRdata$OUTCOME2<-factor(PRdata$OUTCOME, levels = c(0:3), labels = c("No", "1 condition", "2 conditions", "All"))
-
-
-# save final cleaned dataset
-saveRDS(PRdata, "Datasets/Processed data/Cleaned_datasetV1.RDS")
-
+# save final data of NDHS 2016 to processed folder
+saveRDS(PRdata16, "Datasets/Processed data/PRdata2016.RDS")
