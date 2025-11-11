@@ -1,12 +1,12 @@
-# **Factors Associated with Undernutrition, Anemia and Their Coexistence Among 6-59 Months Children in Nepal: A Secondary Analysis of the Nepal Demographic and Health Survey-2022**
+# **Determinants of Undernutrition, Anemia and Their Coexistence Among 6-59 Months Children in Nepal: Evidence from the 2022 Nepal Demographic and Health Survey**
 
 This study aimed to determine the prevalence of undernutrition, anemia, and their co-existence in Nepal, as well as determine their contributing factors among children aged 6-59 months using the **2022 Nepal Demographic and Health Survey (NDHS)** dataset. It utilizes survey-weighted analysis, descriptive summaries, regression modeling, and visualization to uncover socio-demographic and maternal determinants.
 
 ------------------------------------------------------------------------
 
-## 🧑‍💻 Authors
+## Authors
 
-*Bikram Adhikari1,2*, Biraj Neupane3,2, Jessica Rice1, Niharika Jha1,2, Kajol Dahal4, Parash Mani Sapkota5, Archana Shrestha6,7, Xinhua Yu1, Yu Jiang1
+*Bikram Adhikari1,2*, Biraj Neupane3,2, Jessica Rice1, Niharika Jha1,2, Kajol Dahal4, Parash Mani Sapkota5, Archana Shrestha6,7 Yu Jiang1, Xinhua Yu1
 
 ***Affiliation:***
 
@@ -78,9 +78,7 @@ This study aimed to determine the prevalence of undernutrition, anemia, and thei
 └── README.md
 ```
 
-------------------------------------------------------------------------
-
-## ⚙️ Setup Instructions
+## Setup Instructions
 
 ### 1. Clone the Repository
 
@@ -118,7 +116,7 @@ lapply(Packages, require, character.only = TRUE)
 
 ------------------------------------------------------------------------
 
-## 🧾 Results
+## Results
 
 | Output                        | Description                         |
 |-------------------------------|-------------------------------------|
@@ -130,7 +128,7 @@ lapply(Packages, require, character.only = TRUE)
 
 ------------------------------------------------------------------------
 
-## 📜 License
+## License
 
 NDHS datasets remain the property of the **Demographic and Health Surveys (DHS) Program)**.
 
@@ -138,7 +136,7 @@ Users must adhere to DHS data usage policies.
 
 ------------------------------------------------------------------------
 
-## 💡 Citation
+## Citation
 
 > Adhikari, B. et al (2025). *Assessing Undernutrition and Anemia Among Children and Women in Nepal Using DHS 2022 Data*. University of Memphis.
 

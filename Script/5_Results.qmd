@@ -10,7 +10,7 @@ library(tidyverse)
 library(gtsummary)
 library(survey)
 # path to save results 
-path <- "C:/Users/bikra/OneDrive - The University of Memphis/1 PhD program Contents/2 Projects/Undernutrition and anemia"
+path <- "C:/Users/bdhikari/OneDrive - The University of Memphis/1 PhD program Contents/2 Projects/Undernutrition and anemia"
 path_results <-paste0(path, "/Results")
 
 dt <- readRDS(paste0(path, "/Datasets/Processed data/Cleaned_datasetV1.RDS"))
@@ -120,7 +120,7 @@ svydt |>
 # Table 3: Prevalence of co-existence of undernutrtion and anemia
 
 ```{r}
-# table 3: 
+# table 3: overall 
 svydt |> 
 tbl_strata(
     strata = age2,
@@ -135,6 +135,51 @@ tbl_strata(
 ) %>% 
     as_hux_xlsx(paste0(path_results,"/Table 3: prevalence of coexistence of undernutrition and anemia (overall).xlsx"))
 
+
+# table 3: male
+svydt_male<-subset(svydt, Sex=="male" )
+svydt_male |> 
+tbl_strata(
+    strata = age2,
+    .tbl_fun =
+      ~ .x |>
+  tbl_svysummary(include = c("Combined2_1"),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |>
+    add_overall() |> 
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1)))
+)
+
+# table 3: female
+svydt_female<-subset(svydt, Sex=="female" )
+svydt_female |> 
+tbl_strata(
+    strata = age2,
+    .tbl_fun =
+      ~ .x |>
+  tbl_svysummary(include = c("Combined2_1"),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |>
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1)))
+)
+
+#table 3: overall male and female
+svydt |> 
+  tbl_strata(
+    strata = Sex,
+    .tbl_fun =
+      ~ .x |>
+  tbl_svysummary(include = c("Combined2_1"),percent = "column",
+                 digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
+  
+    bold_labels() |>
+  add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
+                          all_continuous()~purrr::partial(style_number, digits=1)))
+)
 
 # table 4
 svydt |> 
