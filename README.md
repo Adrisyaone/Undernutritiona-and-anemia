@@ -26,9 +26,9 @@ This study aimed to determine the prevalence of undernutrition, anemia, and thei
 
 **Correspondence**
 
-\* Bikram Adhikari 📧 Email: [bdhikari\@memphis.edu](mailto:bdhikari@memphis.edu){.email} 🌐 GitHub: <https://github.com/Adrisyaone>
+\* Bikram Adhikari 📧 Email: [bdhikari\@memphis.edu](mailto:bdhikari@memphis.edu) 🌐 GitHub: <https://github.com/Adrisyaone>
 
-\@Xinhya Yu 📧 Email: [xyu2\@memphis.edu](mailto:xyu2@memphis.edu){.email}\
+#Xinhya Yu 📧 Email: [xyu2\@memphis.edu](mailto:xyu2@memphis.edu)\
 
 ------------------------------------------------------------------------
 
