@@ -6,7 +6,7 @@ This study aimed to determine the prevalence of undernutrition, anemia, and thei
 
 ## Authors
 
-*Bikram Adhikari1,2*, Biraj Neupane3,2, Jessica Rice1, Niharika Jha1,2, Kajol Dahal4, Parash Mani Sapkota5, Archana Shrestha6,7 Yu Jiang1, Xinhua Yu1
+*Bikram Adhikari1,2*, Biraj Neupane3,2, Jessica Rice1, Niharika Jha1,2, Kajol Dahal4, Parash Mani Sapkota5, Archana Shrestha6,7 Yu Jiang1, Xinhua Yu1#
 
 ***Affiliation:***
 
@@ -26,8 +26,9 @@ This study aimed to determine the prevalence of undernutrition, anemia, and thei
 
 **Correspondence**
 
-📧 Email: [[bdhikari\@memphis.edu](mailto:your_email@example.com){.email}]\
-🌐 GitHub: <https://github.com/Adrisyaone>
+\* Bikram Adhikari 📧 Email: [bdhikari\@memphis.edu](mailto:bdhikari@memphis.edu){.email} 🌐 GitHub: <https://github.com/Adrisyaone>
+
+\@Xinhya Yu 📧 Email: [xyu2\@memphis.edu](mailto:xyu2@memphis.edu){.email}\
 
 ------------------------------------------------------------------------
 
@@ -112,7 +113,7 @@ lapply(Packages, require, character.only = TRUE)
 1.  **Descriptive Statistics** — Weighted summaries by demographic variables.\
 2.  **Prevalence Estimates** — Stunting, wasting, underweight, and anemia.\
 3.  **Regression Models** — Logistic regression for associated factors.\
-4.  **Visualization** — Prevalence and risk difference charts.
+4.  **Visualization** — Prevalence charts.
 
 ------------------------------------------------------------------------
 
@@ -123,7 +124,6 @@ lapply(Packages, require, character.only = TRUE)
 | `Characteristics.xlsx`        | Summary of participants             |
 | `Factors_undernutrition.xlsx` | Regression model for undernutrition |
 | `Factors_anemia.xlsx`         | Regression model for anemia         |
-| `Weighted_Figures/`           | Visual outputs                      |
 | `Final_Report.docx`           | Complete analytical report          |
 
 ------------------------------------------------------------------------
@@ -138,7 +138,7 @@ Users must adhere to DHS data usage policies.
 
 ## Citation
 
-> Adhikari, B. et al (2025). *Assessing Undernutrition and Anemia Among Children and Women in Nepal Using DHS 2022 Data*. University of Memphis.
+> Adhikari, B. et al (2025). *Determinants of Co-existence of Undernutrition and Anemia among Children aged 6-59 Months in Nepal: Evidence from the 2022 Nepal Demographic and Health Survey*.
 
 ------------------------------------------------------------------------
 
