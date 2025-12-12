@@ -545,8 +545,11 @@ PRdata <- PRdata %>%
          wasting=ifelse(nt_ch_wast==1, 1,0),
          underwt=ifelse(nt_ch_underwt==1, 1,0),
          stunting2=ifelse(nt_ch_stunt==1, "S","NS"),
+         stunting3=ifelse(nt_ch_stunt==1, "Stunting","No stunting"),
          wasting2=ifelse(nt_ch_wast==1, "W","NW"),
+         wasting3=ifelse(nt_ch_wast==1, "Wasting","No wasting"),
          underwt2=ifelse(nt_ch_underwt==1, "UW","NUW"),
+         underwt3=ifelse(nt_ch_underwt==1, "Under weight","No underweight"),
          
    
          
@@ -602,7 +605,7 @@ PRdata <- PRdata %>%
            hc1 >= 37 & hc1 <= 60 ~ 3,
            TRUE ~ NA  # for missing or out-of-range values
          ),
-         age2=factor(age2, levels=c(1:3), labels=c("6-12 months", "1 year to 3 years", "4 to 5 years")),
+         age2=factor(age2, levels=c(1:3), labels=c("6-12 months", "13-36 months", "37-59 months")),
          age=factor(age, levels=c(1,2), labels=c("6-23", "24-59")),
          
          #mothers age at birth
@@ -642,6 +645,7 @@ PRdata$OUTCOME<- ifelse(PRdata$combined_indicator=="000", 0,
 PRdata$OUTCOME2<-factor(PRdata$OUTCOME, levels = c(0:3), labels = c("No", "1 condition", "2 conditions", "All"))
 
 
+PRdata<- forcats::as_factor(PRdata, only_labelled = TRUE)
 # save final cleaned dataset
 saveRDS(PRdata, "Datasets/Processed data/Cleaned_datasetV1.RDS")
 

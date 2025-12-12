@@ -10,13 +10,10 @@ library(tidyverse)
 library(gtsummary)
 library(survey)
 # path to save results 
-path <- "C:/Users/bdhikari/OneDrive - The University of Memphis/1 PhD program Contents/2 Projects/Undernutrition and anemia"
+path <- "C:/Users/bikra/OneDrive - The University of Memphis/1 PhD program Contents/2 Projects/Undernutrition and anemia"
 path_results <-paste0(path, "/Results")
 
 dt <- readRDS(paste0(path, "/Datasets/Processed data/Cleaned_datasetV1.RDS"))
-
-# pull labels from the spss 
-dt <-forcats::as_factor(dt, only_labelled = T)
 
 # remove unused labels from factor
 dt<-dt |> droplevels()
@@ -31,7 +28,7 @@ svydt<-svydesign(ids = ~ids, weights = ~Sampling_wt, data=dt)
 
 ```{r, echo=FALSE, warning=FALSE}
 
-svydt |> 
+tab2<-svydt |> 
   tbl_svysummary(include = c("Sex","Ecological_region", "Place_of_residence", "Province", "Wealth_quintile", "motheredu", "fatheredu","mothers_age_at_birth","parity", "maternal_nut", "housedecision", "health_program"),
                  statistic = list(all_categorical()~"{p}"),
                  digits = all_categorical()~c(1),
@@ -47,8 +44,13 @@ svydt |>
                          "maternal_nut"="Mother’s nutritional status", 
                          "housedecision"="Mother’s participation in household decision making" )) |> 
   bold_labels()|> 
-  add_overall() |> 
-  as_hux_xlsx(paste0(path_results,"/Table 1 characterstics of survey participatns.xlsx"))
+  add_overall() 
+
+tab2
+
+tab2|> 
+  as_hux_xlsx(paste0(path_results,"/Table 2 characterstics of 6-59 months children.xlsx"))
+
 
 ```
 
@@ -57,30 +59,35 @@ svydt |>
 ```{r, warning=FALSE}
 
 # age wise
-svydt |> 
+tab31<-svydt |> 
 tbl_strata(
     strata = age2,
     .tbl_fun =
       ~ .x |>
-  tbl_svysummary(include = c("all_under_nutrition", "stunting2", "wasting2", "underwt2"),percent = "column",
+  tbl_svysummary(include = c("all_under_nutrition", "stunting3", "wasting3", "underwt3"),percent = "column",
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
   
     bold_labels() |>
-    add_overall() |> 
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
                           all_continuous()~purrr::partial(style_number, digits=1)))
-)|> 
+)
+tab31
+tab31|> 
   as_hux_xlsx(paste0(path_results,"/Table for Figure 1: prevalence of different undernutritions and their coexistence (age specific).xlsx"))
 
+
 # overall
-svydt |> 
-  tbl_svysummary(include = c("all_under_nutrition", "stunting2", "wasting2", "underwt2"),percent = "column",
+tab32<-svydt |> 
+  tbl_svysummary(include = c("all_under_nutrition", "stunting3", "wasting3", "underwt3"),percent = "column",
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
   
     bold_labels() |>
-    add_overall() |> 
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
-                          all_continuous()~purrr::partial(style_number, digits=1))) |> 
+                          all_continuous()~purrr::partial(style_number, digits=1)))
+
+tab32
+
+tab32|> 
   as_hux_xlsx(paste0(path_results,"/Table for Figure 1: prevalence of different undernutritions and their coexistence (overall).xlsx"))
 
 ```
@@ -90,7 +97,7 @@ svydt |>
 ```{r, warning=FALSE}
 
 # age wise
-svydt |> 
+tab41<-svydt |> 
 tbl_strata(
     strata = age2,
     .tbl_fun =
@@ -99,20 +106,25 @@ tbl_strata(
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
   
     bold_labels() |>
-    add_overall() |> 
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
-                          all_continuous()~purrr::partial(style_number, digits=1))))|> 
+                          all_continuous()~purrr::partial(style_number, digits=1))))
+
+tab41
+
+tab41|> 
   as_hux_xlsx(paste0(path_results,"/Table for Figure 2: prevalence of anemia (age specific).xlsx"))
 
 # overall
-svydt |> 
+tab42<-svydt |> 
   tbl_svysummary(include = c("Anemia_all"),percent = "column",
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
   
     bold_labels() |>
-    add_overall() |> 
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
-                          all_continuous()~purrr::partial(style_number, digits=1))) |> 
+                          all_continuous()~purrr::partial(style_number, digits=1))) 
+tab42
+
+tab42|> 
   as_hux_xlsx(paste0(path_results,"/Table for Figure 2: prevalence of anemia(overall).xlsx"))
 
 ```
@@ -121,24 +133,28 @@ svydt |>
 
 ```{r}
 # table 3: overall 
-svydt |> 
+tab51<-svydt |> 
 tbl_strata(
     strata = age2,
     .tbl_fun =
       ~ .x |>
-  tbl_svysummary(include = c("Combined2_1"),percent = "column",
+  tbl_svysummary(include = c("Combined2_1", "stunt_ane", "wast_ane", 'underwt_ane'),percent = "column",
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
   
     bold_labels() |>
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
                           all_continuous()~purrr::partial(style_number, digits=1)))
-) %>% 
-    as_hux_xlsx(paste0(path_results,"/Table 3: prevalence of coexistence of undernutrition and anemia (overall).xlsx"))
+) 
+
+tab51
+
+tab51%>% 
+    as_hux_xlsx(paste0(path_results,"/Table 3: coexistence of anemia and undernutrition (all children).xlsx"))
 
 
 # table 3: male
 svydt_male<-subset(svydt, Sex=="male" )
-svydt_male |> 
+tab52<-svydt_male |> 
 tbl_strata(
     strata = age2,
     .tbl_fun =
@@ -147,14 +163,20 @@ tbl_strata(
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}") |> 
   
     bold_labels() |>
-    add_overall() |> 
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
                           all_continuous()~purrr::partial(style_number, digits=1)))
 )
+
+tab52
+
+tab52 %>% 
+    as_hux_xlsx(paste0(path_results,"/Table 3: coexistence of anemia and undernutrition (Male children).xlsx"))
+
+
 
 # table 3: female
 svydt_female<-subset(svydt, Sex=="female" )
-svydt_female |> 
+tab53<-svydt_female |> 
 tbl_strata(
     strata = age2,
     .tbl_fun =
@@ -167,8 +189,13 @@ tbl_strata(
                           all_continuous()~purrr::partial(style_number, digits=1)))
 )
 
+tab53
+
+tab53%>% 
+    as_hux_xlsx(paste0(path_results,"/Table 3: coexistence of anemia and undernutrition (Female children).xlsx"))
+
 #table 3: overall male and female
-svydt |> 
+tab54<-svydt |> 
   tbl_strata(
     strata = Sex,
     .tbl_fun =
@@ -180,18 +207,24 @@ svydt |>
   add_ci(style_fun = list(all_categorical() ~ purrr::partial(style_percent, digits = 1),
                           all_continuous()~purrr::partial(style_number, digits=1)))
 )
+tab54
+
+
 
 # table 4
-svydt |> 
+tab55<-svydt |> 
 tbl_strata(
     strata = age2,
     .tbl_fun =
       ~ .x |>
   tbl_svysummary(include = c("Wealth_quintile","motheredu", "housedecision","health_program","maternal_nut" ),percent = "row", by="Combined2_1",
                  digits = all_categorical()~c(1), statistic = all_categorical()~"{p}", missing = "no") |>  
-  
-    bold_labels()) |>
-    as_hux_xlsx(paste0(path_results,"/Table 3_prevalence of coexistence of undernutrition and anemia across exposure by age.xlsx"))
+    bold_labels()) 
+
+tab55
+
+tab55|>
+    as_hux_xlsx(paste0(path_results,"/Table 4 distribution of undernutrition and anemia and coexistecne across exposure variables by age.xlsx"))
 
 
 
@@ -385,12 +418,10 @@ tbl_merge(list(tab0, tab1, tab2),tab_spanner = c("n(%)", "Unadjusted", "Adjusted
 
 ```
 
-# chart
+# Distribution of 
 
 ```{r}
-# "Wealth_quintile", "motheredu", "housedecision", "health_program",
-
-
+# CI across prevalence for chart 4
 a <- svyby(~Anemia, ~Wealth_quintile,svydt,svymean, na.rm=F)
 ftable(a)
 confint(a)*100
@@ -445,7 +476,7 @@ confint(a)*100
 
 ```{r}
 library(readxl)
-For_chart <- read_excel("Datasets/For chart.xlsx")
+For_chart <- read_excel("C:/Users/bikra/OneDrive - The University of Memphis/1 PhD program Contents/2 Projects/Undernutrition and anemia/Datasets/For chart.xlsx")
 View(For_chart)
 For_chart$Condition<-factor(For_chart$Condition, levels = c("Anemia", "Under nutrition", "Co-existence"))
 For_chart$Cat<-factor(For_chart$Cat, levels = c("Health Program Exposure", "Mother's Education", "Mother's participation in household decision", "Wealth Quintile"), labels = c("Health Program Exposure", "Mother's Education", "Household Decision making", "Wealth Quintile"))
